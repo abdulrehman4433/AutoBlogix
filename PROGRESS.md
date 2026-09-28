@@ -34,8 +34,8 @@ then implement the module completely, tick its acceptance checklist, add an
 | # | Module | Doc | Status |
 |---|--------|-----|--------|
 | 1 | Project audit + auth + dashboard shell + seeding | docs/modules/01-auth-dashboard.md | ✅ complete (commit: Phase 1) |
-| 2 | Websites + WebsiteCredentialService + policies + connection logs | docs/modules/02-websites.md | pending |
-| 3 | WordPress API (HMAC middleware, endpoints, rate limits, nonce store) + docs/wordpress-api.md | docs/modules/03-wordpress-api.md | pending |
+| 2 | Websites + WebsiteCredentialService + policies + connection logs | docs/modules/02-websites.md | ✅ complete (commit: Phase 2) |
+| 3 | WordPress API (HMAC middleware, endpoints, rate limits, nonce store) + docs/wordpress-api.md | docs/modules/03-wordpress-api.md | pending — next |
 | 4 | Blog posts module (CRUD, filters, preview, statuses) | docs/modules/04-blog-posts.md | pending |
 | 5 | WordPress publishing (service, job, idempotency, logs, retry) | docs/modules/05-publishing.md | pending |
 | 6 | AI layer (interface, manager, providers, prompts + seeder, UI, logs) | docs/modules/06-ai.md | pending |
@@ -44,7 +44,7 @@ then implement the module completely, tick its acceptance checklist, add an
 
 Old Phase 0 (setup) is folded into Phase 1's audit; its doc is `docs/setup.md`.
 
-## What exists now (after Phase 1)
+## What exists now (after Phase 2)
 
 - Foundation tables: `websites`, `blog_posts`, `connection_logs`, `publishing_logs`
   (feature code arrives in later phases), plus users/jobs/cache/sessions.
@@ -56,16 +56,27 @@ Old Phase 0 (setup) is folded into Phase 1's audit; its doc is `docs/setup.md`.
   are intentionally NOT mass assignable.
 - Factories: WebsiteFactory (`withCredentials`, `connected`),
   BlogPostFactory (`scheduled($at)`, `published`), UserFactory (Breeze).
-- Services: `App\Services\DashboardService::metricsFor(User)` — all dashboard reads.
-- Views: `layouts/{app,guest,navigation}`, `dashboard/index`, components:
-  alert, button, badge, input, textarea, select, table, modal (+ Breeze extras:
-  dropdown, nav-link, text-input, primary/secondary/danger-button...).
-- Routes: `/` → redirect `/dashboard`; `dashboard` (auth+verified); Breeze auth +
-  profile. **Navigation guards links with `Route::has()` — module routes light up
-  as phases land** (websites.index, posts.index, schedules.index, ai.generate,
-  ai.providers, logs.index, settings.index).
+- Services: `DashboardService::metricsFor(User)`; **WebsiteService**
+  (create/update/delete, returns one-time secret); **WebsiteCredentialService**
+  (generateApiKey/ApiSecret, issue/rotate/revoke/verify — Phase 3 middleware
+  will call `verifyCredentials(key, secret): ?Website`).
+- Support/Rules: **UrlNormalizer** (normalize + isPrivateHost + isAllowedUrl —
+  SSRF rules in ONE place for validation AND Phase 3 outbound calls);
+  **ValidWebsiteUrl** rule.
+- Policies: `WebsitePolicy` (owner-only; auto-discovered).
+- Controllers: Dashboard, Websites (resource), WebsiteCredential (rotate/revoke).
+- Owner-scoped `Route::bind('website')` in AppServiceProvider → cross-user IDs
+  return **404** (never 403). Use the same pattern for future {schedule} etc.
+- Views: `layouts/{app,guest,navigation}`, `dashboard/index`,
+  `websites/{index,create,edit,show}`, components: alert, button, badge, input,
+  textarea, select, table, modal (+ Breeze extras).
+- Routes: `/` → redirect `/dashboard`; `dashboard`; `websites.*` resource +
+  `websites.credentials.rotate|revoke` (create/store registered BEFORE resource!);
+  Breeze auth + profile. Navigation guards links with `Route::has()`.
 - Seeders: UserSeeder (admin@autoblogix.test / password, updateOrCreate,
-  production guard via `config('app.seed_admin_password')`).
+  production guard via `config('app.seed_admin_password')`). No demo websites.
+- Phase 2 verified: 77 tests passing, Pint clean, build clean, HTTP smoke of
+  full create → secret-once → masked flow against the running dev server.
 
 ## Decisions made
 
@@ -80,6 +91,13 @@ Old Phase 0 (setup) is folded into Phase 1's audit; its doc is `docs/setup.md`.
 - Cascade deletes: user → websites → posts/logs (MVP integrity rule).
 - `publish_idempotency_key`: uuid column, unique, nullable — generated per
   publish attempt (phase 5).
+- Owner-scoped `Route::bind()` → cross-user 404, policies as second layer.
+- Laravel 13 CSRF middleware class is `PreventRequestForgery`
+  (`ValidateCsrfToken` is a deprecated subclass); test-mode CSRF bypass is
+  disabled when a test switches `app['env']` → use `withoutMiddleware` there.
+- Website host charset limited to `[a-z0-9._-]` (IDN must be punycode).
+- Route registration order: explicit `/websites/create` + POST before the
+  resource's `{website}` wildcard.
 
 ## Assumptions (one-liners)
 
@@ -90,7 +108,13 @@ Old Phase 0 (setup) is folded into Phase 1's audit; its doc is `docs/setup.md`.
 
 ## Open issues / TODO
 
-- [ ] Phase 2: write docs/modules/02-websites.md FIRST, then implement.
+- [ ] Phase 3: write docs/modules/03-wordpress-api.md FIRST, then implement.
+  Build on: `WebsiteCredentialService::verifyCredentials()`,
+  `UrlNormalizer` (re-check DNS/IP before outbound calls), connection_logs
+  actions `connect|verify|disconnect|heartbeat|publish-result`, website status
+  transitions pending → connected / error, `last_connected_at`/`last_sync_at`/
+  `wordpress_version`/`plugin_version` columns, named rate limiters,
+  docs/wordpress-api.md (HMAC spec, both directions, curl/PHP examples).
 - [ ] README does not exist yet as AutoBlogix README (Phase 8 rewrites it).
 - [ ] Remember Node 22 portable PATH prefix for npm commands.
 - [ ] User model: add `aiProviders()` / `promptTemplates()` relations in Phase 6.
