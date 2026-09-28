@@ -88,8 +88,22 @@ class WebsiteCredentialService
     }
 
     /**
-     * Constant-time verification of an inbound key/secret pair (used by the
-     * Phase 3 HMAC middleware). Returns the owning website on success.
+     * Look a website up by its plain API key (public identifier only —
+     * never sufficient without a valid HMAC signature).
+     */
+    public function findWebsiteByKey(string $apiKey): ?Website
+    {
+        if ($apiKey === '') {
+            return null;
+        }
+
+        return Website::where('api_key', $apiKey)->first();
+    }
+
+    /**
+     * Constant-time key/secret pair check. The HMAC middleware signs with the
+     * stored secret instead (the secret is never transmitted); this helper
+     * serves any flow that receives both plaintext values.
      */
     public function verifyCredentials(string $apiKey, string $apiSecret): ?Website
     {

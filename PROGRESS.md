@@ -35,8 +35,8 @@ then implement the module completely, tick its acceptance checklist, add an
 |---|--------|-----|--------|
 | 1 | Project audit + auth + dashboard shell + seeding | docs/modules/01-auth-dashboard.md | ✅ complete (commit: Phase 1) |
 | 2 | Websites + WebsiteCredentialService + policies + connection logs | docs/modules/02-websites.md | ✅ complete (commit: Phase 2) |
-| 3 | WordPress API (HMAC middleware, endpoints, rate limits, nonce store) + docs/wordpress-api.md | docs/modules/03-wordpress-api.md | pending — next |
-| 4 | Blog posts module (CRUD, filters, preview, statuses) | docs/modules/04-blog-posts.md | pending |
+| 3 | WordPress API (HMAC middleware, endpoints, rate limits, nonce store) + docs/wordpress-api.md | docs/modules/03-wordpress-api.md | ✅ complete (commit: Phase 3) |
+| 4 | Blog posts module (CRUD, filters, preview, statuses) | docs/modules/04-blog-posts.md | pending — next |
 | 5 | WordPress publishing (service, job, idempotency, logs, retry) | docs/modules/05-publishing.md | pending |
 | 6 | AI layer (interface, manager, providers, prompts + seeder, UI, logs) | docs/modules/06-ai.md | pending |
 | 7 | Schedules + scheduler + queue jobs + timezone logic | docs/modules/07-schedules.md | pending |
@@ -44,10 +44,12 @@ then implement the module completely, tick its acceptance checklist, add an
 
 Old Phase 0 (setup) is folded into Phase 1's audit; its doc is `docs/setup.md`.
 
-## What exists now (after Phase 2)
+## What exists now (after Phase 3)
 
-- Foundation tables: `websites`, `blog_posts`, `connection_logs`, `publishing_logs`
-  (feature code arrives in later phases), plus users/jobs/cache/sessions.
+### Phase 1–2 (unchanged)
+
+- Foundation tables: `websites`, `blog_posts`, `connection_logs`, `publishing_logs`,
+  plus users/jobs/cache/sessions.
 - Enums (backed, string): `App\Enums\{WebsiteStatus, PostStatus, PostSource,
   PublishingLogStatus, ConnectionLogStatus}` — includes `PostStatus::publishable()`
   (scheduled/failed only, per idempotency rule).
@@ -58,11 +60,9 @@ Old Phase 0 (setup) is folded into Phase 1's audit; its doc is `docs/setup.md`.
   BlogPostFactory (`scheduled($at)`, `published`), UserFactory (Breeze).
 - Services: `DashboardService::metricsFor(User)`; **WebsiteService**
   (create/update/delete, returns one-time secret); **WebsiteCredentialService**
-  (generateApiKey/ApiSecret, issue/rotate/revoke/verify — Phase 3 middleware
-  will call `verifyCredentials(key, secret): ?Website`).
+  (generateApiKey/ApiSecret, issue/rotate/revoke/verify/findWebsiteByKey).
 - Support/Rules: **UrlNormalizer** (normalize + isPrivateHost + isAllowedUrl —
-  SSRF rules in ONE place for validation AND Phase 3 outbound calls);
-  **ValidWebsiteUrl** rule.
+  SSRF rules in ONE place); **ValidWebsiteUrl** rule.
 - Policies: `WebsitePolicy` (owner-only; auto-discovered).
 - Controllers: Dashboard, Websites (resource), WebsiteCredential (rotate/revoke).
 - Owner-scoped `Route::bind('website')` in AppServiceProvider → cross-user IDs
@@ -75,8 +75,40 @@ Old Phase 0 (setup) is folded into Phase 1's audit; its doc is `docs/setup.md`.
   Breeze auth + profile. Navigation guards links with `Route::has()`.
 - Seeders: UserSeeder (admin@autoblogix.test / password, updateOrCreate,
   production guard via `config('app.seed_admin_password')`). No demo websites.
-- Phase 2 verified: 77 tests passing, Pint clean, build clean, HTTP smoke of
-  full create → secret-once → masked flow against the running dev server.
+
+### Phase 3 — WordPress API (inbound, HMAC-signed)
+
+- `routes/api.php` enabled via `withRouting(api:)` (prefix `/api`, group
+  `api`, JSON always). Five POST routes `/api/v1/wordpress/{connect, verify,
+  disconnect, heartbeat, publish-result}`, each `throttle:<named>` FIRST then
+  `VerifyWordPressSignature`.
+- Signature: `hex(hmac_sha256(secret, "METHOD\nPATH\nTIMESTAMP\nNONCE\nsha256hex(body)"))`,
+  headers `X-ABX-Key/Timestamp/Nonce/Signature`; ±300 s window; nonce
+  single-use via atomic `Cache::add` (600 s TTL), consumed only after a valid
+  signature; `hash_equals`; dummy HMAC for unknown keys.
+- Services: **HmacSigner** (canonical payload/sign/verify — shared with
+  Phase 5 outbound), **WordPressAuthenticationService** (throws
+  `App\Exceptions\WordPressAuthenticationException` with stable codes:
+  missing_headers, invalid_nonce, unknown_key, stale_timestamp,
+  invalid_signature, replayed_nonce — all 401), **WordPressConnectionService**
+  (connect/verify/disconnect/heartbeat state machine + connection_logs;
+  heartbeat logs only on status change), **PublishingService::recordPluginResult()**
+  (lockForUpdate + already_recorded no-op + closes publishing_logs once —
+  Phase 5 extends it with outbound publishing).
+- Rate limiters (AppServiceProvider, each per key AND per IP): connect
+  10/10 · verify 30/30 · wordpress-api (disconnect/heartbeat) 60/120 ·
+  publish-result 60/60 per minute.
+- Form Requests: `WordPressApiRequest` base (422 → `error: validation_failed`),
+  Connect/Heartbeat (version pattern `^[A-Za-z0-9._-]+$`, max 32),
+  PublishResult (conditional fields from boolean `success`).
+- `docs/wordpress-api.md`: full plugin contract with computed worked example,
+  error-code + rate-limit tables, retry rules, sign-request.php script.
+- Statuses: pending/disconnected/error → connected (connect/heartbeat),
+  → disconnected (disconnect); `error` reserved for Phase 5 outbound test
+  failures. Verified live: connect 200, bad signature 401, stale 401,
+  verify 200, DB rows correct.
+- Phase 3 verified: **112 tests / 389 assertions**, Pint clean, live HTTP
+  smoke (temporary website created, exercised, deleted).
 
 ## Decisions made
 
@@ -108,13 +140,15 @@ Old Phase 0 (setup) is folded into Phase 1's audit; its doc is `docs/setup.md`.
 
 ## Open issues / TODO
 
-- [ ] Phase 3: write docs/modules/03-wordpress-api.md FIRST, then implement.
-  Build on: `WebsiteCredentialService::verifyCredentials()`,
-  `UrlNormalizer` (re-check DNS/IP before outbound calls), connection_logs
-  actions `connect|verify|disconnect|heartbeat|publish-result`, website status
-  transitions pending → connected / error, `last_connected_at`/`last_sync_at`/
-  `wordpress_version`/`plugin_version` columns, named rate limiters,
-  docs/wordpress-api.md (HMAC spec, both directions, curl/PHP examples).
+- [x] Phase 3 done: doc, 5 signed endpoints, rate limiters, docs/wordpress-api.md,
+  35 new tests, live smoke. connection_logs actions are
+  connect|verify|disconnect|heartbeat|authenticate (publish outcomes live in
+  publishing_logs, not connection_logs).
+- [ ] Phase 4: write docs/modules/04-blog-posts.md FIRST, then implement blog
+  posts CRUD/filters/preview. Build on: BlogPostFactory (`scheduled`,
+  `published`), `PostStatus::publishable()`, owner scoping (404 rule),
+  Form Request pattern from Phase 2/3, `publish_idempotency_key` stays
+  nullable until Phase 5.
 - [ ] README does not exist yet as AutoBlogix README (Phase 8 rewrites it).
 - [ ] Remember Node 22 portable PATH prefix for npm commands.
 - [ ] User model: add `aiProviders()` / `promptTemplates()` relations in Phase 6.
