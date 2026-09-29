@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\AiContentController;
+use App\Http\Controllers\AiProviderController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PostPublishController;
 use App\Http\Controllers\PostsController;
@@ -34,6 +36,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::post('/posts/{post}/publish', [PostPublishController::class, 'store'])
         ->name('posts.publish');
+
+    Route::get('/ai-content', [AiContentController::class, 'show'])->name('ai.generate');
+    Route::post('/ai-content', [AiContentController::class, 'store'])->name('ai.store');
+    Route::post('/posts/{post}/generate', [AiContentController::class, 'generate'])
+        ->name('posts.generate');
+
+    Route::get('/ai-providers', [AiProviderController::class, 'show'])->name('ai.providers');
+    Route::post('/ai-providers', [AiProviderController::class, 'store'])->name('ai.providers.store');
+    Route::post('/ai-providers/{provider}/activate', [AiProviderController::class, 'activate'])
+        ->name('ai.providers.activate');
+    Route::delete('/ai-providers/{provider}', [AiProviderController::class, 'destroy'])
+        ->name('ai.providers.destroy');
 });
 
 Route::middleware('auth')->group(function () {

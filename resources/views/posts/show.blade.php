@@ -13,7 +13,7 @@
                 </p>
             </div>
             <div class="flex shrink-0 items-center gap-2">
-                @if (in_array($post->status->value, ['draft', 'scheduled', 'failed'], true))
+                @if (in_array($post->status->value, ['draft', 'scheduled', 'failed', 'generated'], true))
                     <form method="POST" action="{{ route('posts.publish', $post) }}">
                         @csrf
                         <x-button variant="primary" type="submit">
@@ -22,6 +22,23 @@
                     </form>
                 @elseif ($post->status->value === 'publishing')
                     <x-button variant="primary" disabled loading>Publishing…</x-button>
+                @endif
+                @if (in_array($post->status->value, ['draft', 'generated'], true))
+                    @if (trim((string) $post->content) !== '')
+                        <x-button
+                            variant="secondary"
+                            x-on:click="$dispatch('open-modal', 'confirm-ai-generate')"
+                        >
+                            Regenerate with AI
+                        </x-button>
+                    @else
+                        <form method="POST" action="{{ route('posts.generate', $post) }}">
+                            @csrf
+                            <x-button variant="secondary" type="submit">Generate content</x-button>
+                        </form>
+                    @endif
+                @elseif ($post->status->value === 'generating')
+                    <x-button variant="secondary" disabled loading>Generating…</x-button>
                 @endif
                 <x-button variant="secondary" :href="route('posts.edit', $post)">Edit</x-button>
                 <x-button
@@ -90,6 +107,43 @@
                                             <td class="py-2 text-gray-600">
                                                 {{ $log->error_message ?? $log->response_summary ?? '—' }}
                                             </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @endif
+                </div>
+
+                <div class="rounded-xl bg-white p-6 ring-1 ring-gray-200">
+                    <h2 class="text-sm font-semibold text-gray-900">AI generation history</h2>
+
+                    @if ($aiLogs->isEmpty())
+                        <p class="mt-3 text-sm text-gray-500">No AI generation attempts yet.</p>
+                    @else
+                        <div class="mt-3 overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200 text-sm">
+                                <thead>
+                                    <tr class="text-left text-xs uppercase tracking-wide text-gray-500">
+                                        <th scope="col" class="py-2 pr-4">Provider</th>
+                                        <th scope="col" class="py-2 pr-4">Status</th>
+                                        <th scope="col" class="py-2 pr-4">Tokens</th>
+                                        <th scope="col" class="py-2 pr-4">Started</th>
+                                        <th scope="col" class="py-2">Details</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    @foreach ($aiLogs as $log)
+                                        <tr>
+                                            <td class="py-2 pr-4 text-gray-900">
+                                                {{ $log->provider }}{{ $log->model ? ' · '.$log->model : '' }}
+                                            </td>
+                                            <td class="py-2 pr-4">
+                                                <x-badge :variant="$log->status->badge()">{{ $log->status->label() }}</x-badge>
+                                            </td>
+                                            <td class="py-2 pr-4 text-gray-600">{{ $log->tokens_used ?? '—' }}</td>
+                                            <td class="py-2 pr-4 text-gray-600">{{ $log->started_at?->format('M j, Y H:i') ?? '—' }}</td>
+                                            <td class="py-2 text-gray-600">{{ $log->error_message ?? '—' }}</td>
                                         </tr>
                                     @endforeach
                                 </tbody>
@@ -200,6 +254,22 @@
                 </div>
             </div>
         </div>
+
+        <x-modal name="confirm-ai-generate" title="Regenerate content with AI?" max-width="md">
+            <p>
+                The AI will replace this post's content, excerpt, tags, keywords
+                and meta description. You can edit everything afterwards.
+            </p>
+            <x-slot name="footer">
+                <div class="flex justify-end gap-3">
+                    <x-button variant="secondary" x-on:click="$dispatch('close-modal')">Cancel</x-button>
+                    <form method="POST" action="{{ route('posts.generate', $post) }}">
+                        @csrf
+                        <x-button variant="primary" type="submit">Regenerate</x-button>
+                    </form>
+                </div>
+            </x-slot>
+        </x-modal>
 
         <x-modal name="confirm-post-delete" title="Delete this post?" max-width="md">
             <p>

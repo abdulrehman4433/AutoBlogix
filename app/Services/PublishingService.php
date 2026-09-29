@@ -107,7 +107,13 @@ class PublishingService
                 return 'published';
             }
 
-            if ($locked->status === PostStatus::Draft) {
+            /*
+             * "Publish now" on a draft — or on AI-generated content —
+             * records the immediate schedule and enters publishing through
+             * the regular scheduled state, keeping the "only
+             * scheduled/failed may publish" rule intact.
+             */
+            if (in_array($locked->status, [PostStatus::Draft, PostStatus::Generated], true)) {
                 $locked->scheduled_at ??= now();
                 $locked->status = PostStatus::Scheduled;
                 $locked->save();

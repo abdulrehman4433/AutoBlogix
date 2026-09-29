@@ -78,6 +78,7 @@ class PostsController extends Controller
         return view('posts.show', [
             'post' => $post,
             'publishingLogs' => $post->publishingLogs()->latest('id')->get(),
+            'aiLogs' => $post->aiLogs()->latest('id')->get(),
         ]);
     }
 

@@ -35,6 +35,11 @@ class BlogPostPolicy
         return $this->owns($user, $post);
     }
 
+    public function generate(User $user, BlogPost $post): bool
+    {
+        return $this->owns($user, $post);
+    }
+
     private function owns(User $user, BlogPost $post): bool
     {
         return $user->id === $post->user_id;

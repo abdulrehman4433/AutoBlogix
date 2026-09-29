@@ -11,9 +11,10 @@
     $post = $post ?? null;
 
     // Schedules only belong to posts that have not been handed to
-    // WordPress yet (Phase 5 owns publishing statuses).
+    // WordPress yet (Phase 5 owns publishing statuses); generated posts
+    // may be given a schedule directly (Phase 6 → Phase 7 bridge).
     $canSchedule = $post === null
-        || in_array($post->status->value, ['draft', 'scheduled'], true);
+        || in_array($post->status->value, ['draft', 'scheduled', 'generated'], true);
 
     $scheduledValue = old(
         'scheduled_at',

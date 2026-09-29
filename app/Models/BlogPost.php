@@ -74,6 +74,12 @@ class BlogPost extends Model
         return $this->hasMany(PublishingLog::class, 'post_id');
     }
 
+    /** @return HasMany<AiLog, $this> */
+    public function aiLogs(): HasMany
+    {
+        return $this->hasMany(AiLog::class, 'post_id');
+    }
+
     public function isPublished(): bool
     {
         return $this->status === PostStatus::Published && $this->wordpress_post_id !== null;

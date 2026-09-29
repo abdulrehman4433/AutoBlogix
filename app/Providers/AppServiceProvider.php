@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\AiProvider;
 use App\Models\BlogPost;
 use App\Models\Website;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -49,6 +50,18 @@ class AppServiceProvider extends ServiceProvider
             abort_if($user === null, 404);
 
             return $user->blogPosts()->whereKey($value)->firstOrFail();
+        });
+
+        /*
+         * Owner scoping for AI provider configurations (Phase 6): another
+         * user's row ID resolves to 404.
+         */
+        Route::bind('provider', function (string $value): AiProvider {
+            $user = auth()->user();
+
+            abort_if($user === null, 404);
+
+            return $user->aiProviders()->whereKey($value)->firstOrFail();
         });
 
         $this->registerWordPressApiRateLimiters();

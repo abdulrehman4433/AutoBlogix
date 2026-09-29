@@ -38,13 +38,13 @@ then implement the module completely, tick its acceptance checklist, add an
 | 3 | WordPress API (HMAC middleware, endpoints, rate limits, nonce store) + docs/wordpress-api.md | docs/modules/03-wordpress-api.md | ✅ complete (commit: Phase 3) |
 | 4 | Blog posts module (CRUD, filters, preview, statuses) | docs/modules/04-blog-posts.md | ✅ complete (commit: Phase 4) |
 | 5 | WordPress publishing (service, job, idempotency, logs, retry) | docs/modules/05-publishing.md | ✅ complete (commit: Phase 5) |
-| 6 | AI layer (interface, manager, providers, prompts + seeder, UI, logs) | docs/modules/06-ai.md | pending |
+| 6 | AI layer (interface, manager, providers, prompts + seeder, UI, logs) | docs/modules/06-ai.md | ✅ complete (commit: Phase 6) |
 | 7 | Schedules + scheduler + queue jobs + timezone logic | docs/modules/07-schedules.md | pending |
 | 8 | Settings, logs UI, polish, final docs (README, process.md, architecture, ai-providers, scheduling), full test run | docs/modules/08-settings-logs.md | pending |
 
 Old Phase 0 (setup) is folded into Phase 1's audit; its doc is `docs/setup.md`.
 
-## What exists now (after Phase 5)
+## What exists now (after Phase 6)
 
 ### Phase 1–2 (unchanged)
 
@@ -190,6 +190,62 @@ Old Phase 0 (setup) is folded into Phase 1's audit; its doc is `docs/setup.md`.
   technical `ConnectionException` only in the log); DB restored to seeded
   state (0,0,0,0,0).
 
+### Phase 6 — AI layer (providers, prompts, generation, logs)
+
+- Routes (auth+verified): `ai.generate` (GET `/ai-content` composer),
+  `ai.store`, `posts.generate` (POST `/posts/{post}/generate`),
+  `ai.providers` + `ai.providers.store|activate|destroy`. `{provider}` uses the
+  owner-scoped `Route::bind` (foreign → 404); no policy needed — the row is
+  always resolved through the session user's relation.
+- Tables: `ai_providers` (provider, **api_key `encrypted` cast** (never mass
+  assigned), model, base_url SSRF-checked via `UrlNormalizer::isAllowedUrl`,
+  `is_active` — exactly one active row per user, swapped in a transaction);
+  `prompt_templates` (global unique `key`, seeded idempotently from
+  `config('ai.defaults.*')` by `PromptTemplateSeeder`, DB row wins, config =
+  fallback so generation works pre-seeder); `ai_logs` (per attempt:
+  processing → success/failed, provider/model/tokens_used/error_message/
+  started_at/completed_at). New enum `AiLogStatus` (+`label()`/`badge()`).
+- Services (flat in `app/Services/`): `AiProviderInterface` —
+  `generate(string $system, string $user, array $input)` returns
+  content/excerpt/tags/keywords/meta_description/tokens_used, plus `name()`
+  and `model()`; `DevelopmentAiProvider` (deterministic, offline, default);
+  `OpenAiProvider` (bearer auth, `config/ai.php` timeout ← **AI_TIMEOUT=30**
+  newly in `.env.example`, HTTP status → friendly message map, response parsed
+  by `AiResponseParser`); `AiProviderManager::forUser()` — active DB row →
+  env `AI_PROVIDER` → development fallback (+`Log::warning` for unusable
+  config); `AiResponseParser` (defensive: markdown fences, prose around the
+  outermost `{…}`, `content_html` alias, type coercion, ≤5/≤10 list caps,
+  excerpt derivation, friendly exception on anything unparseable);
+  `AiContentService` — `compose()` (create draft via
+  `BlogPostService::create(..., PostSource::Ai)` then generate) and
+  `generateForPost()` (lockForUpdate status gate {draft, generating,
+  generated} → `generating` + open ai_log → provider call OUTSIDE the
+  transaction → success: write 5 columns + `HtmlSanitizer::sanitize` at ingest
+  + `ai_provider`/`ai_model` + status `generated` + log success; failure:
+  restore previous status + close log `failed` with technical detail +
+  friendly flash — never a 500; closes interrupted `processing` rows first,
+  which is the crash-recovery path for a visible `generating` state).
+- `config/ai.php`: provider/api_key/model/base_url/timeout + default prompt
+  texts with `:title :topic :keywords :tone :length_words` placeholders.
+- UI: `ai-content/index` (composer; "Add a website first" CTA),
+  `ai-providers/index` (env-fallback vs active alert, table with masked
+  `••••1234` hint — full key never rendered —, activate/remove, add form),
+  posts.show: **Generate content** (empty draft) / **Regenerate with AI**
+  (confirm modal, draft+generated) / disabled **Generating…** + new **AI
+  generation history** table; publish button and edit-form schedule field now
+  include `generated`.
+- Bridge edits into Phase 4/5 code: `PublishingService::requestPublish()`
+  accepts `generated` (→ scheduled → publishing, same idempotent entry);
+  `BlogPostService::create()` gained `PostSource $source = PostSource::Manual`
+  and `update()` flips `generated + schedule → scheduled`; new
+  `BlogPostPolicy::generate`; `User::aiProviders()/aiLogs()`,
+  `BlogPost::aiLogs()`, show controller passes `aiLogs`.
+- Verified: **AiTest 18/148**, **AiResponseParserTest 7/24**, full suite
+  **167 tests / 765 assertions OK**, Pint clean, `npm run build` ok, live
+  HTTP smoke **28/28** (composer → Generated → regenerate → 2 log rows →
+  provider store/encrypted/masked/delete → env fallback), DB restored to
+  seeded state (0,0,0,0).
+
 ## Decisions made
 
 - Latest stable Laravel = 13; Breeze Blade for auth; PHPUnit (not Pest).
@@ -249,6 +305,20 @@ Old Phase 0 (setup) is folded into Phase 1's audit; its doc is `docs/setup.md`.
   `WORDPRESS_API_TIMEOUT`, status still publishing) → mark failed; a
   `queue:work` runner must exist for jobs to finish (UI shows a disabled
   "Publishing…" until then).
+- [x] Phase 6 done: doc, AI layer (interface/manager/providers/parser/service,
+  prompts + idempotent seeder, composer + providers UI + show actions + AI
+  history), 25 new tests (suite 167/765), live smoke 28/28, DB clean.
+  Resolved earlier TODO: `User::aiProviders()` / `User::aiLogs()` added;
+  `prompt_templates` are GLOBAL (no `User::promptTemplates()` — dropped,
+  flagged for a Phase 8 prompt editor in Settings).
+  **Phase 7 handoff:** scheduler calls
+  `PublishingService::requestPublish($post)` at `scheduled_at` (works for
+  `scheduled`; `generated` posts reach `scheduled` via edit-schedule or
+  Publish now — both already implemented); add the sweep for posts stuck in
+  `publishing` (pending/processing log older than `WORDPRESS_API_TIMEOUT`,
+  status still publishing → mark failed with friendly reason); a
+  `queue:work` runner must exist for jobs to finish (show page renders a
+  disabled "Publishing…" until then); keep AI statuses (`generating`,
+  `generated`) out of the scheduler's path — only `scheduled` fires.
 - [ ] README does not exist yet as AutoBlogix README (Phase 8 rewrites it).
 - [ ] Remember Node 22 portable PATH prefix for npm commands.
-- [ ] User model: add `aiProviders()` / `promptTemplates()` relations in Phase 6.

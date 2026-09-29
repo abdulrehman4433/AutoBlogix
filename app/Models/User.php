@@ -42,4 +42,16 @@ class User extends Authenticatable
     {
         return $this->hasMany(BlogPost::class);
     }
+
+    /** @return HasMany<AiProvider, $this> */
+    public function aiProviders(): HasMany
+    {
+        return $this->hasMany(AiProvider::class);
+    }
+
+    /** @return HasMany<AiLog, $this> */
+    public function aiLogs(): HasMany
+    {
+        return $this->hasMany(AiLog::class);
+    }
 }

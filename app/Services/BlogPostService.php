@@ -22,7 +22,7 @@ class BlogPostService
     /**
      * @param  array<string, mixed>  $attributes  Validated input.
      */
-    public function create(User $user, array $attributes): BlogPost
+    public function create(User $user, array $attributes, PostSource $source = PostSource::Manual): BlogPost
     {
         $website = Website::query()
             ->whereKey($attributes['website_id'])
@@ -41,7 +41,7 @@ class BlogPostService
         $post->meta_description = $attributes['meta_description'] ?? null;
         $post->tags = $attributes['tags'] ?? [];
         $post->keywords = $attributes['keywords'] ?? [];
-        $post->source = PostSource::Manual;
+        $post->source = $source;
         $post->scheduled_at = $this->scheduleToUtc($attributes['scheduled_at'] ?? null, $website);
         $post->status = $post->scheduled_at !== null
             ? PostStatus::Scheduled
@@ -80,12 +80,16 @@ class BlogPostService
             $post->slug = $this->uniqueSlug($post->website, $post->title);
         }
 
-        // Status only moves between draft and scheduled; publish outcomes
-        // (Phase 5) and AI states (Phase 6) survive edits untouched.
-        if (in_array($post->status, [PostStatus::Draft, PostStatus::Scheduled], true)) {
-            $post->status = $post->scheduled_at !== null
-                ? PostStatus::Scheduled
-                : PostStatus::Draft;
+        // Status moves between draft and scheduled on save; publishing
+        // outcomes (Phase 5) and AI states (Phase 6) survive edits
+        // untouched. Exception: giving a generated post a schedule makes
+        // it scheduled (Phase 7's scheduler picks scheduled posts up).
+        if (in_array($post->status, [PostStatus::Draft, PostStatus::Scheduled, PostStatus::Generated], true)) {
+            if ($post->scheduled_at !== null) {
+                $post->status = PostStatus::Scheduled;
+            } elseif ($post->status !== PostStatus::Generated) {
+                $post->status = PostStatus::Draft;
+            }
         }
 
         $post->save();
