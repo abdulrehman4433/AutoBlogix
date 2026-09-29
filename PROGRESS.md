@@ -39,12 +39,12 @@ then implement the module completely, tick its acceptance checklist, add an
 | 4 | Blog posts module (CRUD, filters, preview, statuses) | docs/modules/04-blog-posts.md | ✅ complete (commit: Phase 4) |
 | 5 | WordPress publishing (service, job, idempotency, logs, retry) | docs/modules/05-publishing.md | ✅ complete (commit: Phase 5) |
 | 6 | AI layer (interface, manager, providers, prompts + seeder, UI, logs) | docs/modules/06-ai.md | ✅ complete (commit: Phase 6) |
-| 7 | Schedules + scheduler + queue jobs + timezone logic | docs/modules/07-schedules.md | pending |
+| 7 | Schedules + scheduler + queue jobs + timezone logic | docs/modules/07-schedules.md | ✅ complete (commit: Phase 7) |
 | 8 | Settings, logs UI, polish, final docs (README, process.md, architecture, ai-providers, scheduling), full test run | docs/modules/08-settings-logs.md | pending |
 
 Old Phase 0 (setup) is folded into Phase 1's audit; its doc is `docs/setup.md`.
 
-## What exists now (after Phase 6)
+## What exists now (after Phase 7)
 
 ### Phase 1–2 (unchanged)
 
@@ -246,6 +246,43 @@ Old Phase 0 (setup) is folded into Phase 1's audit; its doc is `docs/setup.md`.
   provider store/encrypted/masked/delete → env fallback), DB restored to
   seeded state (0,0,0,0).
 
+### Phase 7 — Schedules (due publishing, sweep, scheduler + queue runner)
+
+- Routes (auth+verified): GET `/schedules` → `schedules.index`,
+  POST `/schedules/run` → `schedules.run`. Index is user-scoped; `run` is
+  deliberately **system-wide** (the manual equivalent of one cron tick —
+  processes every user's due posts, idempotent, DB-only). The nav's
+  `Route::has('schedules.index')` link finally appears.
+- `ScheduledPublishingService` — due query (global, `status = scheduled` +
+  `scheduled_at <= now()` in UTC, deterministic order) tallying
+  `PublishingService::requestPublish()` outcomes (`queued` /
+  `already handled` / `skipped`); `run()` = `publishDue()` +
+  `PublishingService::sweepTimedOutPublishing()` (new method, reuses the
+  private `applyOutcome()`): candidates `status = publishing`, age = latest
+  **open** log's `started_at` (fallback `updated_at` for log-less zombies),
+  cutoff = now − (`WORDPRESS_API_TIMEOUT` + 60 s `SWEEP_GRACE_SECONDS`),
+  re-checked under `lockForUpdate` → friendly `failure_reason` +
+  technical `Swept:` log entry + `Log::warning`; terminal log rows never
+  overwritten (Phase 5's exactly-one-terminal rule).
+- Command `posts:run-scheduler` (Laravel 13 `#[Signature]`/`#[Description]`
+  attributes) prints `Due: N (queued N, already handled N, skipped N);
+  stuck recovered: N.`; `routes/console.php` schedules it **every minute**
+  alongside `queue:work --stop-when-empty` (both `withoutOverlapping(5)`) →
+  ONE `schedule:run` cron line drives dispatch AND completion
+  (`php artisan schedule:work` in dev).
+- UI: `schedules/index` — runner info alert, overdue warning + amber
+  **Overdue** badge + relative time, website-time column, per-row
+  **Publish now**, **Run scheduler now** button with exact-count flash,
+  empty state. No migration, no new table/enum; AI statuses untouched
+  (sweep reads only `publishing`).
+- Verified: **SchedulesTest 10 tests / 61 assertions**, full suite
+  **177 tests / 826 assertions OK**, Pint clean, `npm run build` ok, live
+  smoke **37/37** (empty state → manual run 0/0/0 → `schedule:list` shows
+  both entries → overdue UI → real `posts:run-scheduler` → job row → real
+  `queue:work --once` → friendly NXDOMAIN failure → planted stuck attempt →
+  sweep recovers 1 with friendly/technical split → idempotent second run →
+  cleanup restored **0,0,0,0,0**).
+
 ## Decisions made
 
 - Latest stable Laravel = 13; Breeze Blade for auth; PHPUnit (not Pest).
@@ -320,5 +357,19 @@ Old Phase 0 (setup) is folded into Phase 1's audit; its doc is `docs/setup.md`.
   `queue:work` runner must exist for jobs to finish (show page renders a
   disabled "Publishing…" until then); keep AI statuses (`generating`,
   `generated`) out of the scheduler's path — only `scheduled` fires.
+- [x] Phase 7 done: doc, schedules routes + page, `ScheduledPublishingService`
+  (due query + orchestration), `PublishingService::sweepTimedOutPublishing()`,
+  `posts:run-scheduler` command, `routes/console.php` schedule
+  (`posts:run-scheduler` + `queue:work --stop-when-empty`, every minute,
+  `withoutOverlapping(5)`), 10 new tests (suite 177/826), live smoke 37/37,
+  DB clean. Both Phase 5/6 handoffs (sweep + queue runner) are now
+  implemented; AI statuses untouched.
+  **Phase 8 handoff:** Settings + logs UI still pending (nav
+  `settings.index` / `logs.index` are the last `Route::has`-guarded links);
+  final docs must include `docs/scheduling.md` documenting the one cron
+  line (`* * * * * php artisan schedule:run`), Windows Task Scheduler,
+  `schedule:work` for dev, and the `queue:work` requirement (the schedules
+  page info alert already states the essentials); README rewrite +
+  `docs/process.md` + architecture + ai-providers per the plan.
 - [ ] README does not exist yet as AutoBlogix README (Phase 8 rewrites it).
 - [ ] Remember Node 22 portable PATH prefix for npm commands.

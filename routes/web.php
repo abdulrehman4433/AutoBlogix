@@ -6,6 +6,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PostPublishController;
 use App\Http\Controllers\PostsController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\SchedulesController;
 use App\Http\Controllers\WebsiteCredentialController;
 use App\Http\Controllers\WebsitesController;
 use Illuminate\Support\Facades\Route;
@@ -48,6 +49,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('ai.providers.activate');
     Route::delete('/ai-providers/{provider}', [AiProviderController::class, 'destroy'])
         ->name('ai.providers.destroy');
+
+    Route::get('/schedules', [SchedulesController::class, 'index'])->name('schedules.index');
+    Route::post('/schedules/run', [SchedulesController::class, 'run'])->name('schedules.run');
 });
 
 Route::middleware('auth')->group(function () {

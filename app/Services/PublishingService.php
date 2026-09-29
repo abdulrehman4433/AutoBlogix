@@ -23,10 +23,19 @@ use Illuminate\Support\Str;
  * Outbound (Phase 5): requestPublish() — the idempotent entry point used by
  * the "Publish now" button and, from Phase 7, the scheduler — and
  * executeAttempt() — the locked HTTP attempt run by PublishPostJob.
+ * Sweep (Phase 7): sweepTimedOutPublishing() — recovers posts whose attempt
+ * never finished because the queue worker stopped.
  * Both directions share applyOutcome() so the final state always wins.
  */
 class PublishingService
 {
+    /**
+     * Extra time past the HTTP timeout before the sweep declares an attempt
+     * dead, so a genuinely in-flight request can never be swept mid-flight
+     * (the client gives up at the timeout, long before this grace expires).
+     */
+    private const int SWEEP_GRACE_SECONDS = 60;
+
     public function __construct(private readonly WordPressPublishingClient $client) {}
 
     /**
@@ -199,6 +208,76 @@ class PublishingService
         } finally {
             $lock->release();
         }
+    }
+
+    /**
+     * Recover posts stuck in `publishing` — the worker died mid-attempt or
+     * the queue was never drained, leaving the attempt row open past the
+     * HTTP timeout plus grace. Marks them failed through the shared
+     * finalizer (friendly `failure_reason` on the post, technical detail in
+     * the log) so Retry publish becomes possible again. Never throws.
+     *
+     * @return int The number of posts recovered.
+     */
+    public function sweepTimedOutPublishing(): int
+    {
+        $timeout = (int) config('wordpress.timeout');
+        $cutoff = now()->subSeconds($timeout + self::SWEEP_GRACE_SECONDS);
+        $recovered = 0;
+
+        $candidates = BlogPost::query()
+            ->where('status', PostStatus::Publishing)
+            ->pluck('id');
+
+        foreach ($candidates as $postId) {
+            $didRecover = DB::transaction(function () use ($postId, $timeout, $cutoff): bool {
+                $post = BlogPost::query()->whereKey($postId)->lockForUpdate()->first();
+
+                if ($post === null || $post->status !== PostStatus::Publishing) {
+                    return false;
+                }
+
+                $log = $post->publishingLogs()->latest('id')->first();
+                $isOpen = $log !== null
+                    && in_array($log->status, [PublishingLogStatus::Pending, PublishingLogStatus::Processing], true);
+
+                // The open attempt's start time decides; fall back to the
+                // post row so a log-less stuck post can still recover.
+                $ageFrom = ($isOpen ? $log->started_at : null) ?? $post->updated_at;
+
+                if ($ageFrom === null || $ageFrom->greaterThan($cutoff)) {
+                    return false;
+                }
+
+                $this->applyOutcome(
+                    $post,
+                    success: false,
+                    message: sprintf(
+                        'Publishing timed out after %d seconds — the queue worker may not be running. Start it (php artisan queue:work) and use Retry publish.',
+                        $timeout,
+                    ),
+                    technical: sprintf(
+                        'Swept: stuck in publishing since %s (attempt %s, log %s; budget %ds + %ds grace).',
+                        $ageFrom->toIso8601String(),
+                        $log?->attempt ?? 'none',
+                        $log?->status->value ?? 'missing',
+                        $timeout,
+                        self::SWEEP_GRACE_SECONDS,
+                    ),
+                );
+
+                return true;
+            });
+
+            if ($didRecover) {
+                $recovered++;
+                Log::warning('Recovered stuck publishing attempt (scheduler sweep)', [
+                    'post_id' => $postId,
+                ]);
+            }
+        }
+
+        return $recovered;
     }
 
     /**
