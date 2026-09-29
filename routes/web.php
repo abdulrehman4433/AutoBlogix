@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\PostPublishController;
 use App\Http\Controllers\PostsController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\WebsiteCredentialController;
@@ -30,6 +31,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::resource('posts', PostsController::class)
         ->except(['create', 'store']);
+
+    Route::post('/posts/{post}/publish', [PostPublishController::class, 'store'])
+        ->name('posts.publish');
 });
 
 Route::middleware('auth')->group(function () {

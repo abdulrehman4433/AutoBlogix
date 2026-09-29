@@ -37,14 +37,14 @@ then implement the module completely, tick its acceptance checklist, add an
 | 2 | Websites + WebsiteCredentialService + policies + connection logs | docs/modules/02-websites.md | ✅ complete (commit: Phase 2) |
 | 3 | WordPress API (HMAC middleware, endpoints, rate limits, nonce store) + docs/wordpress-api.md | docs/modules/03-wordpress-api.md | ✅ complete (commit: Phase 3) |
 | 4 | Blog posts module (CRUD, filters, preview, statuses) | docs/modules/04-blog-posts.md | ✅ complete (commit: Phase 4) |
-| 5 | WordPress publishing (service, job, idempotency, logs, retry) | docs/modules/05-publishing.md | pending — next |
+| 5 | WordPress publishing (service, job, idempotency, logs, retry) | docs/modules/05-publishing.md | ✅ complete (commit: Phase 5) |
 | 6 | AI layer (interface, manager, providers, prompts + seeder, UI, logs) | docs/modules/06-ai.md | pending |
 | 7 | Schedules + scheduler + queue jobs + timezone logic | docs/modules/07-schedules.md | pending |
 | 8 | Settings, logs UI, polish, final docs (README, process.md, architecture, ai-providers, scheduling), full test run | docs/modules/08-settings-logs.md | pending |
 
 Old Phase 0 (setup) is folded into Phase 1's audit; its doc is `docs/setup.md`.
 
-## What exists now (after Phase 4)
+## What exists now (after Phase 5)
 
 ### Phase 1–2 (unchanged)
 
@@ -145,6 +145,51 @@ Old Phase 0 (setup) is folded into Phase 1's audit; its doc is `docs/setup.md`.
   `09:30 America/New_York` → `2030-06-15 13:30:00` UTC); DB restored to
   seeded state (0 rows in websites/blog_posts/*_logs).
 
+### Phase 5 — WordPress publishing (outbound, job, idempotency, retry)
+
+- Route `POST /posts/{post}/publish` → `posts.publish` (auth+verified,
+  `BlogPostPolicy::publish` = owner, owner-scoped bind → 404). One endpoint
+  serves **Publish now** (draft/scheduled) and **Retry publish** (failed);
+  publishing posts show a disabled "Publishing…" button, published posts no
+  button (index has no publish action — show page owns it).
+- `PublishingService` (three entry points, one shared finalizer):
+  - `requestPublish()` — idempotent entry (spec): transaction +
+    `lockForUpdate`; draft first → `scheduled` (`scheduled_at ??= now`) on
+    explicit click, then only `PostStatus::publishable()` may enter
+    `publishing`; returns `queued|already_publishing|published|not_publishable`
+    (never throws); opens a **pending** `publishing_logs` row (attempt =
+    running count +1); dispatches `PublishPostJob` after the transaction.
+  - `executeAttempt()` (job, `tries = 1`) — `Cache::lock` per post
+    (non-blocking), re-checks `status === publishing` under row lock, flips
+    log → processing, HTTP **outside** transactions, then finalizes; never
+    throws (failures are data); deleted post mid-flight → no-op.
+  - `recordPluginResult()` (Phase 3) + sync response both go through
+    `applyOutcome()`/`closePublishingLog()` → final state wins, exactly one
+    terminal log row per attempt; `already_recorded` semantics unchanged.
+- `WordPressPublishingClient` — signs with `HmacSigner` over the **exact**
+  bytes (`json_encode` once → `withBody`, never re-encoded); path includes
+  the site's subdirectory (`/blog/wp-json/autoblogix/v1/publish`); timeout
+  `config('wordpress.timeout')` ← new `config/wordpress.php`
+  (`WORDPRESS_API_TIMEOUT` was a dead env var until now); friendly error map
+  (unreachable / 401-403 credentials / 404-405 plugin missing / 429 / 5xx /
+  bad JSON / plugin `message`-`code`); technical detail (status + body
+  snippet) → `publishing_logs.error_message` + `Log::warning` — never the
+  secret/signature.
+- `publish_idempotency_key` (uuid): generated on **first** attempt, stable
+  across retries (refines the Phase 1 "per attempt" wording — a retry after
+  a lost response must not duplicate the post on WordPress; documented in
+  docs/wordpress-api.md §7).
+- `docs/wordpress-api.md` **§7 added**: outbound publish endpoint contract
+  (payload, response shapes, idempotent dedupe requirement, plugin
+  verification against `REQUEST_URI`, how AutoBlogix interprets replies).
+- Phase 5 verified: **PublishingTest 14 tests / 109 assertions**, full
+  suite **142 tests / 593 assertions** (Phase 3 API tests green after the
+  refactor), Pint clean, `npm run build` ok, live HTTP smoke **27/27**
+  (real queue worker + real NXDOMAIN → friendly `Could not reach
+  smoke-test.example.com…`, retry → attempts `1,2` with the same key,
+  technical `ConnectionException` only in the log); DB restored to seeded
+  state (0,0,0,0,0).
+
 ## Decisions made
 
 - Latest stable Laravel = 13; Breeze Blade for auth; PHPUnit (not Pest).
@@ -156,8 +201,8 @@ Old Phase 0 (setup) is folded into Phase 1's audit; its doc is `docs/setup.md`.
 - Foundation migrations created in Phase 1 because the real-metrics dashboard
   needs those tables; phases 2–7 focus on feature code.
 - Cascade deletes: user → websites → posts/logs (MVP integrity rule).
-- `publish_idempotency_key`: uuid column, unique, nullable — generated per
-  publish attempt (phase 5).
+- `publish_idempotency_key`: uuid column, unique, nullable — generated on
+  the first publish attempt and kept stable across retries (Phase 5 refinement).
 - Owner-scoped `Route::bind()` → cross-user 404, policies as second layer.
 - Laravel 13 CSRF middleware class is `PreventRequestForgery`
   (`ValidateCsrfToken` is a deprecated subclass); test-mode CSRF bypass is
@@ -170,8 +215,8 @@ Old Phase 0 (setup) is folded into Phase 1's audit; its doc is `docs/setup.md`.
 
 - Local MySQL-compatible server is MariaDB 12 (see above).
 - APP_URL `http://localhost:8000` via `php artisan serve`.
-- Website URL is normalized to scheme+host (no trailing slash) by
-  `UrlNormalizer`; unique constraint is (user_id, url).
+- Website URL is normalized by `UrlNormalizer` to scheme+host+path with no
+  trailing slash (subdirectory installs supported); unique per (user, url).
 
 ## Open issues / TODO
 
@@ -189,6 +234,21 @@ Old Phase 0 (setup) is folded into Phase 1's audit; its doc is `docs/setup.md`.
   attempt; `PostStatus::publishable()` (scheduled/failed) gates the
   transition into `publishing`; failed posts show `failure_reason` alert on
   show (already styled).
+- [x] Phase 5 done: doc, `posts.publish` route + policy, `requestPublish()`
+  idempotent entry + `PublishPostJob` + `WordPressPublishingClient`,
+  `config/wordpress.php`, show-page publish/retry/publishing states,
+  docs/wordpress-api.md §7, 14 new tests (suite 142/593), live smoke 27/27,
+  DB clean. **Phase 6 handoff:** AI layer touches statuses
+  generating/generated (owned by `BlogPostService` save rule — do not let
+  edits clobber them); publishing already sends `content`/`excerpt`/`tags`/
+  `keywords`/`meta_description` to the plugin — AI output only needs to
+  write those columns. **Phase 7 handoff:** scheduler calls
+  `PublishingService::requestPublish($post)` at `scheduled_at` (all
+  idempotency rules already enforced there); add a sweep recovering posts
+  stuck in `publishing` (pending/processing log older than
+  `WORDPRESS_API_TIMEOUT`, status still publishing) → mark failed; a
+  `queue:work` runner must exist for jobs to finish (UI shows a disabled
+  "Publishing…" until then).
 - [ ] README does not exist yet as AutoBlogix README (Phase 8 rewrites it).
 - [ ] Remember Node 22 portable PATH prefix for npm commands.
 - [ ] User model: add `aiProviders()` / `promptTemplates()` relations in Phase 6.

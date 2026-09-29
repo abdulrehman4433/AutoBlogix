@@ -13,6 +13,16 @@
                 </p>
             </div>
             <div class="flex shrink-0 items-center gap-2">
+                @if (in_array($post->status->value, ['draft', 'scheduled', 'failed'], true))
+                    <form method="POST" action="{{ route('posts.publish', $post) }}">
+                        @csrf
+                        <x-button variant="primary" type="submit">
+                            {{ $post->status->value === 'failed' ? 'Retry publish' : 'Publish now' }}
+                        </x-button>
+                    </form>
+                @elseif ($post->status->value === 'publishing')
+                    <x-button variant="primary" disabled loading>Publishing…</x-button>
+                @endif
                 <x-button variant="secondary" :href="route('posts.edit', $post)">Edit</x-button>
                 <x-button
                     variant="danger"

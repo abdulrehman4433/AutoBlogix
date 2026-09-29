@@ -103,7 +103,9 @@ function abx_sign_request(string $method, string $path, string $body, string $ke
 ### Verifying requests AutoBlogix sends to WordPress
 
 The identical algorithm protects AutoBlogix → plugin traffic (outbound
-endpoints such as publish are defined with Phase 5 and appended here). When a
+endpoints such as publish are documented in **§7** — verify them with the
+same canonical string using the full request path, including any
+subdirectory of the site URL). When a
 request arrives with `X-ABX-*` headers, the plugin must:
 
 1. Reject if any header is missing, the timestamp is outside ±300 s, or the
@@ -325,3 +327,86 @@ Example:
 php sign-request.php /api/v1/wordpress/connect abx_… abxs_… \
   '{"wordpress_version":"6.7.1","plugin_version":"1.0.0"}'
 ```
+
+---
+
+## 7. Outbound: POST publish (AutoBlogix → WordPress)
+
+The one endpoint AutoBlogix calls on the plugin. Added with Phase 5; the
+plugin implements it as a WordPress REST route under the `autoblogix/v1`
+namespace.
+
+- **URL:** `https://<site>/wp-json/autoblogix/v1/publish` — for
+  subdirectory installs the site URL already contains the path, so the full
+  request path is e.g. `/blog/wp-json/autoblogix/v1/publish`
+- **Signed path:** the full request path **including the subdirectory**,
+  no query string — recompute with `REQUEST_URI`'s path component
+- **Headers:** the four `X-ABX-*` headers from §1, fresh timestamp/nonce on
+  every attempt (retries included), `Content-Type: application/json`
+
+### Request
+
+```json
+{
+  "idempotency_key": "0f4a8a9e-6b0a-4c0e-9a5c-2f5e3d1b7a11",
+  "post_id": 7,
+  "title": "Hello world",
+  "slug": "hello-world",
+  "content": "<p>Post body HTML…</p>",
+  "excerpt": "Short summary",
+  "category": "News",
+  "tags": ["launch", "tutorial"],
+  "keywords": ["weekly planner"],
+  "meta_description": "Shown by search engines"
+}
+```
+
+- `idempotency_key`, `post_id`, `title`, `slug` — always present
+- `content`, `excerpt`, `category`, `tags`, `keywords`,
+  `meta_description` — omitted when empty (never sent as `null`)
+- The plugin creates the post **published** immediately (AutoBlogix only
+  calls this endpoint once the schedule fired or the user clicked
+  *Publish now*).
+
+### Response
+
+Success `200`:
+
+```json
+{ "success": true, "wordpress_post_id": 123, "url": "https://blog.example.com/hello-world" }
+```
+
+Failure (any status, `200` or `4xx`):
+
+```json
+{ "success": false, "code": "permission_denied", "message": "Friendly, user-visible reason" }
+```
+
+`message` is shown to the AutoBlogix user — keep it friendly; put detail in
+`code`.
+
+### Idempotency (required)
+
+Treat `idempotency_key` as the dedupe token: if a post for that key already
+exists, return the **same** success response instead of creating a second
+post. AutoBlogix reuses one key per post across retries, so a retry after a
+lost response can never duplicate content. The plugin may additionally call
+`/api/v1/wordpress/publish-result` (§2) with the same key to re-report —
+outcomes are recorded exactly once either way.
+
+### How AutoBlogix interprets the reply
+
+| Outcome | User sees (`failure_reason`) |
+| --- | --- |
+| connection failure / timeout | Could not reach \<host\> — site offline or plugin inactive |
+| 401 / 403 | WordPress rejected the API credentials — rotate and update the plugin |
+| 404 / 405 | The publish endpoint was not found — plugin not installed/active |
+| 429 | The website is rate limiting AutoBlogix — try again in a minute |
+| 5xx | The website returned a server error (HTTP nnn) |
+| 2xx, body not valid success JSON | The website returned an unexpected response |
+| `success: false` | the plugin's `message` (or its `code`) |
+
+Timeout: `WORDPRESS_API_TIMEOUT` (default 30 s). One HTTP attempt per queue
+job; retrying is a manual action that reuses the same idempotency key.
+Technical detail (status, body snippet) is stored in `publishing_logs`, never
+shown as the primary message.
