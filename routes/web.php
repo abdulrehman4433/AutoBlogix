@@ -3,10 +3,12 @@
 use App\Http\Controllers\AiContentController;
 use App\Http\Controllers\AiProviderController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\LogsController;
 use App\Http\Controllers\PostPublishController;
 use App\Http\Controllers\PostsController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SchedulesController;
+use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\WebsiteCredentialController;
 use App\Http\Controllers\WebsitesController;
 use Illuminate\Support\Facades\Route;
@@ -52,6 +54,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('/schedules', [SchedulesController::class, 'index'])->name('schedules.index');
     Route::post('/schedules/run', [SchedulesController::class, 'run'])->name('schedules.run');
+
+    Route::get('/logs', [LogsController::class, 'index'])->name('logs.index');
+
+    Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
+    Route::patch('/settings/prompts', [SettingsController::class, 'updatePrompts'])->name('settings.prompts.update');
+    Route::delete('/settings/prompts', [SettingsController::class, 'resetPrompts'])->name('settings.prompts.reset');
 });
 
 Route::middleware('auth')->group(function () {

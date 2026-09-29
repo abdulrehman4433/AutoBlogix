@@ -40,11 +40,11 @@ then implement the module completely, tick its acceptance checklist, add an
 | 5 | WordPress publishing (service, job, idempotency, logs, retry) | docs/modules/05-publishing.md | ✅ complete (commit: Phase 5) |
 | 6 | AI layer (interface, manager, providers, prompts + seeder, UI, logs) | docs/modules/06-ai.md | ✅ complete (commit: Phase 6) |
 | 7 | Schedules + scheduler + queue jobs + timezone logic | docs/modules/07-schedules.md | ✅ complete (commit: Phase 7) |
-| 8 | Settings, logs UI, polish, final docs (README, process.md, architecture, ai-providers, scheduling), full test run | docs/modules/08-settings-logs.md | pending |
+| 8 | Settings, logs UI, polish, final docs (README, process.md, architecture, ai-providers, scheduling), full test run | docs/modules/08-settings-logs.md | ✅ complete (commit: Phase 8) |
 
 Old Phase 0 (setup) is folded into Phase 1's audit; its doc is `docs/setup.md`.
 
-## What exists now (after Phase 7)
+## What exists now (after Phase 8 — all phases complete)
 
 ### Phase 1–2 (unchanged)
 
@@ -283,6 +283,56 @@ Old Phase 0 (setup) is folded into Phase 1's audit; its doc is `docs/setup.md`.
   sweep recovers 1 with friendly/technical split → idempotent second run →
   cleanup restored **0,0,0,0,0**).
 
+### Phase 8 — Settings, activity logs, polish, final docs (MVP complete)
+
+- Routes (auth+verified): GET `/settings` → `settings.index`,
+  PATCH|DELETE `/settings/prompts` → `settings.prompts.update|reset`,
+  GET `/logs` → `logs.index`. The nav's last two `Route::has` guards now
+  resolve — **every Phase 1 nav item is live**.
+- `SettingsController` — Account card (name/email → Breeze `profile.edit`),
+  **AI prompt template editor** (Phase 6 handoff): Form Request
+  `UpdatePromptTemplatesRequest` (`required|string|max:12000`),
+  `PromptTemplate::updateOrCreate` on key `blog_post_generation` (name kept
+  from row/config, never null) + flash; **Reset** (confirm modal) deletes
+  the row → `PromptTemplate::resolve()` transparently falls back to
+  `config('ai.defaults.*')` so generation is never left without a prompt.
+  Read-only System card (URL/timezone/Laravel/PHP/queue/cache/session/env
+  AI provider + key presence) — never renders secrets.
+- `LogsController` — one user-scoped cross-type feed over
+  `connection_logs` + `publishing_logs` + `ai_logs` as three `UNION ALL`
+  branches (only the selected types are built; each branch already scoped
+  and status-filtered): connection → `website_id IN (user's websites)`,
+  publishing → `post_id IN (user's posts)`, ai → `user_id`. Uniform shape
+  `type, subject_id, kind, status, detail, happened_at, row_id`; outer
+  query orders `happened_at DESC, row_id DESC`, paginates 15/page
+  `withQueryString` (COALESCE only — no CONCAT, so sqlite tests and MySQL
+  both run it). Page enrichment: subject names/links in 2 batched queries
+  (no N+1, `Deleted …` fallback), kind wording (action / `Attempt N` /
+  provider with OpenAI·Development labels), status label+badge via the
+  AiLog → Publishing → Connection `tryFrom` chain, human + exact times.
+  Filters `?type=` and `?status=` (invalid values ignored, never 422).
+  Views: `settings/index` (3 cards + reset modal),
+  `logs/index` (filter bar, 5-column feed, pagination card, dual empty
+  states).
+- Final docs: **README.md** rewritten (features, requirements incl.
+  **Node ≥ 20.19**, quick start, three-terminal run block, tests, docs
+  index) plus **docs/process.md** (document→build loop + conventions),
+  **docs/architecture.md** (layers, post state-machine diagram, data
+  model, security model, testing strategy), **docs/ai-providers.md**
+  (resolution order, config, prompt templates, parsing contract),
+  **docs/scheduling.md** (one cron line, Windows Task Scheduler,
+  `schedule:work`, queue:work requirement, sweep rules, troubleshooting).
+- Verified: **SettingsTest 5 + LogsTest 7 = 12 new tests**, full suite
+  **189 tests / 923 assertions OK**, Pint clean, `npm run build` ok, live
+  smoke **46/46** (nav hrefs + labels active → settings cards + config
+  fallback pre-fill → save flash + exactly 1 row + page shows new text →
+  reset flash + 0 rows + fallback back → logs empty state → fixtures →
+  feed shows subjects/kinds/details/badges across all three types →
+  type/status/invalid filters → cleanup restored
+  **0,0,0,0,0,0,0**). Gotcha recorded: creating a website through the
+  form auto-writes one credential-lifecycle connection log
+  (`WebsiteCredentialService::log`) — count `SMOKE`-tagged rows, not totals.
+
 ## Decisions made
 
 - Latest stable Laravel = 13; Breeze Blade for auth; PHPUnit (not Pest).
@@ -371,5 +421,14 @@ Old Phase 0 (setup) is folded into Phase 1's audit; its doc is `docs/setup.md`.
   `schedule:work` for dev, and the `queue:work` requirement (the schedules
   page info alert already states the essentials); README rewrite +
   `docs/process.md` + architecture + ai-providers per the plan.
-- [ ] README does not exist yet as AutoBlogix README (Phase 8 rewrites it).
-- [ ] Remember Node 22 portable PATH prefix for npm commands.
+- [x] Phase 8 done — **all plan phases (1–8) complete**: doc, settings +
+  logs routes/pages, prompt editor (create/edit/reset with config
+  fallback), cross-type activity feed with filters, nav fully activated,
+  12 new tests (suite **189/923**), README rewrite +
+  docs/{process,architecture,ai-providers,scheduling}, live smoke 46/46,
+  DB clean. Scope boundaries held throughout: no billing/teams/advanced
+  SEO/image gen/social/analytics/bulk generation, and the WordPress
+  plugin remains a separate project (contract in docs/wordpress-api.md).
+- [x] README rewritten in Phase 8 (documents Node ≥ 20.19); the portable
+  Node 22 PATH prefix noted in Environment still applies to this machine
+  for `npm install` / `npm run build`.

@@ -1,58 +1,111 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# AutoBlogix
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+AI-assisted WordPress blogging from one dashboard: connect your WordPress
+sites through the AutoBlogix plugin (HMAC-signed API), draft or AI-generate
+posts, schedule them by the site's timezone, and publish — with a complete
+audit trail of every connection, publish attempt, and AI generation.
 
-## About Laravel
+> **Scope:** this repository is the Laravel application only. The WordPress
+> plugin that receives the signed publish calls is a **separate project**;
+> its API contract lives in [`docs/wordpress-api.md`](docs/wordpress-api.md).
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Features (MVP)
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- **Websites** — connect WordPress sites, one-time API secret (shown once,
+  then a masked hint), rotate/revoke, per-site connection activity log.
+- **Posts** — CRUD with per-site slugs, filters/search, sanitized HTML
+  preview, status lifecycle (`draft → scheduled → publishing →
+  published | failed`, plus AI's `generating → generated`).
+- **Publishing** — signed outbound requests from a queued job, a stable
+  `publish_idempotency_key` (a retry can never duplicate a post on
+  WordPress), per-attempt logs, friendly error messages, manual retry.
+- **Schedules** — schedule input in the website's timezone (stored UTC), a
+  Schedules page with overdue highlighting, an every-minute scheduler that
+  publishes what is due and recovers attempts stranded by a stopped worker,
+  and a scheduled queue runner.
+- **AI content** — compose/generate/regenerate posts with pluggable
+  providers (OpenAI-compatible API or the built-in deterministic development
+  stub), global prompt templates editable under Settings, per-attempt logs
+  with token counts.
+- **Activity logs** — one cross-type feed over connections, publishing
+  attempts, and AI generations.
+- **Security** — HMAC-signed plugin API (±300 s window, single-use nonces,
+  named rate limiters), owner-scoped route bindings + policies (foreign IDs
+  → 404), encrypted credentials, HTML sanitization before rendering,
+  SSRF-checked URLs.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Requirements
 
-## Learning Laravel
+| Tool | Version |
+| --- | --- |
+| PHP | 8.4+ (pdo_mysql, mbstring, openssl, tokenizer, curl, xml) |
+| Composer | 2.x |
+| MySQL | 8+ (development may use a MySQL-compatible server such as MariaDB 12) |
+| Node | **≥ 20.19** (Vite 8 floor; npm, for the Tailwind build) |
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+Framework: **Laravel 13**, auth via **Laravel Breeze (Blade)**, frontend
+**Blade + Tailwind CSS 4 + Alpine.js** (no SPA framework).
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## Quick start
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+```sh
+# 1. Databases (MySQL/MariaDB shell)
+mysql -u root -e "CREATE DATABASE IF NOT EXISTS auto_blogix CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+mysql -u root -e "CREATE DATABASE IF NOT EXISTS auto_blogix_testing CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 
-## Agentic Development
+# 2. Environment + migrate + seed
+cp .env.example .env
+php artisan key:generate
+# adjust DB_* in .env if needed
+php artisan migrate:fresh --seed
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
-
-```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+# 3. Frontend
+npm install
+npm run build        # or: npm run dev
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+Full environment reference: [`docs/setup.md`](docs/setup.md).
 
-## Contributing
+**Login:** `admin@autoblogix.test` / `password` (seeded; override the
+password with `SEED_ADMIN_PASSWORD` before seeding a real environment).
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## Running it (three terminals)
 
-## Code of Conduct
+```sh
+php artisan serve         # 1. the app            → http://localhost:8000
+php artisan queue:work    # 2. publish jobs (without it, posts stay "Publishing…")
+php artisan schedule:work # 3. scheduler + queue runner, every minute
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+On a server, cron replaces step 3 with a single line:
 
-## Security Vulnerabilities
+```cron
+* * * * * cd /path/to/autoblogix && php artisan schedule:run >> /dev/null 2>&1
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Details, Windows Task Scheduler steps, and troubleshooting:
+[`docs/scheduling.md`](docs/scheduling.md).
 
-## License
+## Tests
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+```sh
+php artisan test          # or: vendor/bin/phpunit
+```
+
+Feature tests run against **sqlite in-memory** with the sync queue, array
+cache, and `Http::fake()` — no network, no real queue worker. The suite
+covers all eight modules (189 tests / 923 assertions at the end of
+Phase 8).
+
+## Documentation
+
+| Document | Contents |
+| --- | --- |
+| [`docs/setup.md`](docs/setup.md) | Local install, environment, folder structure, coding standards |
+| [`docs/process.md`](docs/process.md) | The document-then-build phase process used to build this app |
+| [`docs/architecture.md`](docs/architecture.md) | Layers, state machines, data model, security model, testing strategy |
+| [`docs/ai-providers.md`](docs/ai-providers.md) | Provider resolution, configuration, prompt templates, parsing rules |
+| [`docs/scheduling.md`](docs/scheduling.md) | Scheduler + queue runner setup, sweep rules, troubleshooting |
+| [`docs/wordpress-api.md`](docs/wordpress-api.md) | The plugin API contract (signing, endpoints, payloads, errors) |
+| [`docs/modules/01…08`](docs/modules) | Per-module design docs with acceptance checklists and "As built" notes |
+| [`PROGRESS.md`](PROGRESS.md) | Resumable build state, decisions, and handoffs |
