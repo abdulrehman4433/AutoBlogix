@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\BlogPost;
 use App\Models\Website;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -36,6 +37,18 @@ class AppServiceProvider extends ServiceProvider
             abort_if($user === null, 404);
 
             return $user->websites()->whereKey($value)->firstOrFail();
+        });
+
+        /*
+         * Same owner scoping for posts: another user's post ID resolves to
+         * 404 (existence is never revealed).
+         */
+        Route::bind('post', function (string $value): BlogPost {
+            $user = auth()->user();
+
+            abort_if($user === null, 404);
+
+            return $user->blogPosts()->whereKey($value)->firstOrFail();
         });
 
         $this->registerWordPressApiRateLimiters();

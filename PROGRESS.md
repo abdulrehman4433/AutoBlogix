@@ -36,15 +36,15 @@ then implement the module completely, tick its acceptance checklist, add an
 | 1 | Project audit + auth + dashboard shell + seeding | docs/modules/01-auth-dashboard.md | ✅ complete (commit: Phase 1) |
 | 2 | Websites + WebsiteCredentialService + policies + connection logs | docs/modules/02-websites.md | ✅ complete (commit: Phase 2) |
 | 3 | WordPress API (HMAC middleware, endpoints, rate limits, nonce store) + docs/wordpress-api.md | docs/modules/03-wordpress-api.md | ✅ complete (commit: Phase 3) |
-| 4 | Blog posts module (CRUD, filters, preview, statuses) | docs/modules/04-blog-posts.md | pending — next |
-| 5 | WordPress publishing (service, job, idempotency, logs, retry) | docs/modules/05-publishing.md | pending |
+| 4 | Blog posts module (CRUD, filters, preview, statuses) | docs/modules/04-blog-posts.md | ✅ complete (commit: Phase 4) |
+| 5 | WordPress publishing (service, job, idempotency, logs, retry) | docs/modules/05-publishing.md | pending — next |
 | 6 | AI layer (interface, manager, providers, prompts + seeder, UI, logs) | docs/modules/06-ai.md | pending |
 | 7 | Schedules + scheduler + queue jobs + timezone logic | docs/modules/07-schedules.md | pending |
 | 8 | Settings, logs UI, polish, final docs (README, process.md, architecture, ai-providers, scheduling), full test run | docs/modules/08-settings-logs.md | pending |
 
 Old Phase 0 (setup) is folded into Phase 1's audit; its doc is `docs/setup.md`.
 
-## What exists now (after Phase 3)
+## What exists now (after Phase 4)
 
 ### Phase 1–2 (unchanged)
 
@@ -110,6 +110,41 @@ Old Phase 0 (setup) is folded into Phase 1's audit; its doc is `docs/setup.md`.
 - Phase 3 verified: **112 tests / 389 assertions**, Pint clean, live HTTP
   smoke (temporary website created, exercised, deleted).
 
+### Phase 4 — Blog posts (CRUD, filters, preview, statuses)
+
+- Routes: `posts.*` resource with `/posts/create` + POST `/posts` registered
+  BEFORE the `{post}` wildcard; owner-scoped `Route::bind('post')` (foreign
+  IDs → **404**) + `BlogPostPolicy` (view/update/delete = owner) as second
+  layer — same pattern as websites.
+- `PostsController` (thin) + **BlogPostService** (create/update/delete,
+  slug generated once, unique per website via suffix loop, never regenerated
+  on edit; status rule: only draft ↔ scheduled ever change on save —
+  publishing/AI statuses are owned by Phases 5/6 and survive edits).
+- `StorePostRequest` shared for store+update: `website_id` must exist **in
+  the user's own websites**; tags/keywords comma-list → array (max 20/10,
+  50 chars each); `scheduled_at` must be in the future when interpreted in
+  the website's timezone, but a value equal to the stored one always passes
+  (so editing an already-scheduled-then-missed post isn't stuck). Raw local
+  input is kept for `old()`; UTC conversion happens in
+  `BlogPostService::scheduleToUtc()` after validation.
+- `BlogPost` model: `scheduledAtSiteTime()` / `publishedAtSiteTime()` —
+  input entered in website tz, stored UTC, displayed back in website tz.
+- **HtmlSanitizer** (`app/Support/`): allowlist `strip_tags` + `on*`
+  attribute removal + `javascript:`/`vbscript:`/`data:text/html` scrub —
+  show-page preview renders through it (AI/user HTML can never execute).
+  Flagged: swap in a purifier package if rich-HTML needs grow.
+- Views: `posts/{index,create,edit,show}` + shared `posts/partials/form`.
+  Index: filter bar (q/status/website → `withQueryString`, 15/page; invalid
+  filter values ignored, never 422), status/source badges, times in website
+  tz, delete confirm modal, empty states (no posts / no website → CTA).
+  Create page without websites → "Add a website first" alert. Show:
+  sanitized preview + meta sidebar + "Publishing history" table (empty until
+  Phase 5). `scheduled_at` field disabled unless status ∈ {draft, scheduled}.
+- Phase 4 verified: **128 tests / 484 assertions** (16 new in PostsTest),
+  Pint clean, npm build ok, live HTTP smoke **22/22** (incl. DB check
+  `09:30 America/New_York` → `2030-06-15 13:30:00` UTC); DB restored to
+  seeded state (0 rows in websites/blog_posts/*_logs).
+
 ## Decisions made
 
 - Latest stable Laravel = 13; Breeze Blade for auth; PHPUnit (not Pest).
@@ -129,14 +164,14 @@ Old Phase 0 (setup) is folded into Phase 1's audit; its doc is `docs/setup.md`.
   disabled when a test switches `app['env']` → use `withoutMiddleware` there.
 - Website host charset limited to `[a-z0-9._-]` (IDN must be punycode).
 - Route registration order: explicit `/websites/create` + POST before the
-  resource's `{website}` wildcard.
+  resource's `{website}` wildcard; same for `/posts/create` (Phase 4).
 
 ## Assumptions (one-liners)
 
 - Local MySQL-compatible server is MariaDB 12 (see above).
 - APP_URL `http://localhost:8000` via `php artisan serve`.
-- Website URL normalized form will be defined in phase 2 (scheme+host, no
-  trailing slash) — unique constraint is (user_id, url).
+- Website URL is normalized to scheme+host (no trailing slash) by
+  `UrlNormalizer`; unique constraint is (user_id, url).
 
 ## Open issues / TODO
 
@@ -144,11 +179,16 @@ Old Phase 0 (setup) is folded into Phase 1's audit; its doc is `docs/setup.md`.
   35 new tests, live smoke. connection_logs actions are
   connect|verify|disconnect|heartbeat|authenticate (publish outcomes live in
   publishing_logs, not connection_logs).
-- [ ] Phase 4: write docs/modules/04-blog-posts.md FIRST, then implement blog
-  posts CRUD/filters/preview. Build on: BlogPostFactory (`scheduled`,
-  `published`), `PostStatus::publishable()`, owner scoping (404 rule),
-  Form Request pattern from Phase 2/3, `publish_idempotency_key` stays
-  nullable until Phase 5.
+- [x] Phase 4 done: doc, posts CRUD/filters/sanitized preview/status
+  transitions, 16 new tests, live smoke 22/22, DB clean. **Phase 5 handoff:**
+  `posts.show` already renders "Publishing history" (publishing_logs, empty)
+  and the PostStatus badge — add "Publish now"/retry actions there and on
+  index; extend `PublishingService` (has `recordPluginResult()` from
+  Phase 3) with outbound publishing that signs requests via `HmacSigner`
+  per `docs/wordpress-api.md`; generate `publish_idempotency_key` per
+  attempt; `PostStatus::publishable()` (scheduled/failed) gates the
+  transition into `publishing`; failed posts show `failure_reason` alert on
+  show (already styled).
 - [ ] README does not exist yet as AutoBlogix README (Phase 8 rewrites it).
 - [ ] Remember Node 22 portable PATH prefix for npm commands.
 - [ ] User model: add `aiProviders()` / `promptTemplates()` relations in Phase 6.

@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 #[Fillable([
     'title',
@@ -76,5 +77,22 @@ class BlogPost extends Model
     public function isPublished(): bool
     {
         return $this->status === PostStatus::Published && $this->wordpress_post_id !== null;
+    }
+
+    /**
+     * The scheduled time converted to the owning website's local timezone
+     * (input is entered and stored per this same timezone).
+     */
+    public function scheduledAtSiteTime(): ?Carbon
+    {
+        return $this->scheduled_at?->setTimezone($this->website->timezone ?: config('app.timezone'));
+    }
+
+    /**
+     * The published time converted to the owning website's local timezone.
+     */
+    public function publishedAtSiteTime(): ?Carbon
+    {
+        return $this->published_at?->setTimezone($this->website->timezone ?: config('app.timezone'));
     }
 }

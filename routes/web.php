@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\PostsController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\WebsiteCredentialController;
 use App\Http\Controllers\WebsitesController;
@@ -23,6 +24,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('websites.credentials.rotate');
     Route::post('/websites/{website}/credentials/revoke', [WebsiteCredentialController::class, 'revoke'])
         ->name('websites.credentials.revoke');
+
+    Route::get('/posts/create', [PostsController::class, 'create'])->name('posts.create');
+    Route::post('/posts', [PostsController::class, 'store'])->name('posts.store');
+
+    Route::resource('posts', PostsController::class)
+        ->except(['create', 'store']);
 });
 
 Route::middleware('auth')->group(function () {
