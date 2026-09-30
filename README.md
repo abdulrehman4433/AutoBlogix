@@ -5,9 +5,30 @@ sites through the AutoBlogix plugin (HMAC-signed API), draft or AI-generate
 posts, schedule them by the site's timezone, and publish — with a complete
 audit trail of every connection, publish attempt, and AI generation.
 
-> **Scope:** this repository is the Laravel application only. The WordPress
-> plugin that receives the signed publish calls is a **separate project**;
-> its API contract lives in [`docs/wordpress-api.md`](docs/wordpress-api.md).
+> **Scope:** this repository is the Laravel application; the WordPress
+> connector plugin lives outside it, installed on the local dev site at
+> `C:\zampp\htdocs\autoblogix-site\wp-content\plugins\autoblogix-connector`
+> (not part of Laravel's `app/` or autoload).
+> Its API contract is [`docs/wordpress-api.md`](docs/wordpress-api.md).
+
+## WordPress plugin
+
+The connector plugin (v1.0.0) is installed and active on the local site
+**http://127.0.0.1/autoblogix-site** at
+**`C:\zampp\htdocs\autoblogix-site\wp-content\plugins\autoblogix-connector`**
+(outside this repository). To ship it to another WordPress site, zip the
+folder from `wp-content/plugins`:
+
+```sh
+cd C:\zampp\htdocs\autoblogix-site\wp-content\plugins
+zip -r autoblogix-connector.zip autoblogix-connector/   # one folder = the zip root
+```
+
+Install that same ZIP on each WordPress site (Plugins → Add New → Upload),
+then open **AutoBlogix → Connection** in wp-admin and enter the Portal URL
+plus the API key/secret issued when the site was added in this portal.
+Full build notes, the checked contract, and the acceptance checklist are in
+`C:\zampp\htdocs\autoblogix-site\wp-content\plugins\autoblogix-connector\DEVELOPMENT.md`.
 
 ## Features (MVP)
 
