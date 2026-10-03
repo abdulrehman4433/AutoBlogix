@@ -3,9 +3,9 @@
     'isEmpty' => false,
 ])
 
-<div {{ $attributes->class(['overflow-x-auto rounded-lg ring-1 ring-gray-200']) }}>
-    <table class="abx-table min-w-full divide-y divide-gray-200 text-sm">
-        <thead class="bg-gray-50">
+<div {{ $attributes->class(['table-wrap overflow-x-auto']) }}>
+    <table class="table min-w-full text-sm">
+        <thead>
             <tr>
                 @isset($head)
                     {{ $head }}
@@ -14,10 +14,10 @@
                 @endisset
             </tr>
         </thead>
-        <tbody class="divide-y divide-gray-100 bg-white">
+        <tbody>
             @if ($isEmpty)
                 <tr>
-                    <td colspan="{{ $columns }}" class="!py-10 text-center text-sm text-gray-500">
+                    <td colspan="{{ $columns }}" class="!py-10 text-center text-sm text-ink-muted">
                         @isset($empty)
                             {{ $empty }}
                         @else
@@ -29,7 +29,7 @@
                 {{ $body }}
             @else
                 <tr>
-                    <td colspan="{{ $columns }}" class="text-gray-500">Row</td>
+                    <td colspan="{{ $columns }}" class="text-ink-muted">Row</td>
                 </tr>
             @endif
         </tbody>

@@ -1,8 +1,15 @@
-<x-app-layout title="New post">
-    <div class="mx-auto max-w-3xl space-y-6">
+<x-app-layout
+    title="New post"
+    :breadcrumb="[
+        ['label' => 'Dashboard', 'href' => route('dashboard'), 'icon' => 'home'],
+        ['label' => 'Posts', 'href' => route('posts.index')],
+        ['label' => 'New post'],
+    ]"
+>
+    <div class="mx-auto max-w-3xl space-y-6 animate-fade-in">
         <div>
-            <h1 class="text-lg font-semibold text-gray-900">New post</h1>
-            <p class="mt-1 text-sm text-gray-500">
+            <h1 class="text-lg font-semibold text-ink">New post</h1>
+            <p class="mt-1 text-sm text-ink-muted">
                 Write a post manually, then schedule or publish it to one of your WordPress sites.
             </p>
         </div>

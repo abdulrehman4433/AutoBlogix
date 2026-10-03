@@ -1,8 +1,16 @@
-<x-app-layout title="Edit post">
-    <div class="mx-auto max-w-3xl space-y-6">
+<x-app-layout
+    title="Edit post"
+    :breadcrumb="[
+        ['label' => 'Dashboard', 'href' => route('dashboard'), 'icon' => 'home'],
+        ['label' => 'Posts', 'href' => route('posts.index')],
+        ['label' => $post->title, 'href' => route('posts.show', $post)],
+        ['label' => 'Edit post'],
+    ]"
+>
+    <div class="mx-auto max-w-3xl space-y-6 animate-fade-in">
         <div>
-            <h1 class="text-lg font-semibold text-gray-900">Edit post</h1>
-            <p class="mt-1 text-sm text-gray-500 truncate">{{ $post->title }}</p>
+            <h1 class="text-lg font-semibold text-ink">Edit post</h1>
+            <p class="mt-1 text-sm text-ink-muted truncate">{{ $post->title }}</p>
         </div>
 
         @include('posts.partials.form', [

@@ -6,10 +6,10 @@
 
 @php
     $types = [
-        'success' => 'border-emerald-200 bg-emerald-50 text-emerald-800',
-        'error' => 'border-red-200 bg-red-50 text-red-800',
-        'warning' => 'border-amber-200 bg-amber-50 text-amber-800',
-        'info' => 'border-sky-200 bg-sky-50 text-sky-800',
+        'success' => 'border-success/30 bg-success-soft text-success-strong',
+        'error' => 'border-danger/30 bg-danger-soft text-danger-strong',
+        'warning' => 'border-warning/40 bg-warning-soft text-warning-strong',
+        'info' => 'border-info/30 bg-info-soft text-info-strong',
     ];
     $classes = $types[$type] ?? $types['info'];
     $icon = [
@@ -21,11 +21,17 @@
 @endphp
 
 <div
-    {{ $attributes->class(['rounded-md border p-4', $classes]) }}
+    {{ $attributes->class(['rounded-xl border p-4 shadow-xs', $classes]) }}
     role="alert"
     x-data="{ show: true }"
     x-show="show"
     x-cloak
+    x-transition:enter="transition ease-out duration-200"
+    x-transition:enter-start="opacity-0 -translate-y-1"
+    x-transition:enter-end="opacity-100 translate-y-0"
+    x-transition:leave="transition ease-in duration-150"
+    x-transition:leave-start="opacity-100 translate-y-0"
+    x-transition:leave-end="opacity-0 -translate-y-1"
 >
     <div class="flex">
         <div class="shrink-0">
@@ -45,7 +51,7 @@
             <div class="ml-auto pl-3">
                 <button
                     type="button"
-                    class="-m-1.5 inline-flex rounded-md p-1.5 hover:bg-black/5 focus:outline-none focus:ring-2 focus:ring-current"
+                    class="-m-1.5 inline-flex rounded-lg p-1.5 hover:bg-black/5 focus:outline-none focus:ring-2 focus:ring-current"
                     aria-label="Dismiss"
                     @click="show = false"
                 >

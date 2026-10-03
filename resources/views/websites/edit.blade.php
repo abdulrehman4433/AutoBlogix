@@ -1,13 +1,21 @@
-<x-app-layout title="Edit website">
-    <div class="mx-auto max-w-2xl space-y-6">
+<x-app-layout
+    title="Edit website"
+    :breadcrumb="[
+        ['label' => 'Dashboard', 'href' => route('dashboard'), 'icon' => 'home'],
+        ['label' => 'Websites', 'href' => route('websites.index')],
+        ['label' => $website->name, 'href' => route('websites.show', $website)],
+        ['label' => 'Edit website'],
+    ]"
+>
+    <div class="mx-auto max-w-2xl space-y-6 animate-fade-in">
         <div>
-            <h1 class="text-lg font-semibold text-gray-900">Edit website</h1>
-            <p class="mt-1 text-sm text-gray-500">
+            <h1 class="text-lg font-semibold text-ink">Edit website</h1>
+            <p class="mt-1 text-sm text-ink-muted">
                 Updating these details does not change your API credentials or connection status.
             </p>
         </div>
 
-        <form method="POST" action="{{ route('websites.update', $website) }}" class="rounded-xl bg-white p-6 ring-1 ring-gray-200">
+        <form method="POST" action="{{ route('websites.update', $website) }}" class="card p-6">
             @csrf
             @method('PUT')
 
@@ -41,7 +49,7 @@
                 />
             </div>
 
-            <div class="mt-6 flex items-center justify-end gap-3 border-t border-gray-100 pt-5">
+            <div class="mt-6 flex items-center justify-end gap-3 border-t border-line pt-5">
                 <x-button variant="secondary" :href="route('websites.show', $website)">Cancel</x-button>
                 <x-button variant="primary" type="submit">Save changes</x-button>
             </div>

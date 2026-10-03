@@ -1,9 +1,15 @@
-<x-app-layout title="Websites">
-    <div class="space-y-6" x-data="{ deleteUrl: null }">
+<x-app-layout
+    title="Websites"
+    :breadcrumb="[
+        ['label' => 'Dashboard', 'href' => route('dashboard'), 'icon' => 'home'],
+        ['label' => 'Websites'],
+    ]"
+>
+    <div class="space-y-6 animate-fade-in" x-data="{ deleteUrl: null }">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-                <h1 class="text-lg font-semibold text-gray-900">Websites</h1>
-                <p class="mt-1 text-sm text-gray-500">WordPress sites connected to your AutoBlogix account.</p>
+                <h1 class="text-lg font-semibold text-ink">Websites</h1>
+                <p class="mt-1 text-sm text-ink-muted">WordPress sites connected to your AutoBlogix account.</p>
             </div>
             <x-button :href="route('websites.create')">Add website</x-button>
         </div>
@@ -20,29 +26,29 @@
 
             <x-slot name="body">
                 @foreach ($websites as $website)
-                    <tr class="hover:bg-gray-50">
-                        <td class="whitespace-nowrap font-medium text-gray-900">
-                            <a class="hover:text-indigo-600" href="{{ route('websites.show', $website) }}">
+                    <tr class="hover:bg-surface-muted">
+                        <td class="whitespace-nowrap font-medium text-ink">
+                            <a class="hover:text-brand-600" href="{{ route('websites.show', $website) }}">
                                 {{ $website->name }}
                             </a>
                         </td>
-                        <td class="max-w-xs truncate text-gray-600">{{ $website->url }}</td>
+                        <td class="max-w-xs truncate text-ink-muted">{{ $website->url }}</td>
                         <td class="whitespace-nowrap">
                             <x-badge :variant="$website->status->badge()">{{ $website->status->label() }}</x-badge>
                         </td>
-                        <td class="whitespace-nowrap text-gray-600">
+                        <td class="whitespace-nowrap text-ink-muted">
                             @if ($website->wordpress_version || $website->plugin_version)
                                 @if ($website->wordpress_version)
-                                    <span class="text-xs text-gray-500">WP {{ $website->wordpress_version }}</span>
+                                    <span class="text-xs text-ink-muted">WP {{ $website->wordpress_version }}</span>
                                 @endif
                                 @if ($website->plugin_version)
-                                    <span class="text-xs text-gray-500">Plugin {{ $website->plugin_version }}</span>
+                                    <span class="text-xs text-ink-muted">Plugin {{ $website->plugin_version }}</span>
                                 @endif
                             @else
-                                <span class="text-gray-400">—</span>
+                                <span class="text-ink-faint">—</span>
                             @endif
                         </td>
-                        <td class="whitespace-nowrap text-gray-600">
+                        <td class="whitespace-nowrap text-ink-muted">
                             {{ $website->last_connected_at?->diffForHumans() ?? '—' }}
                         </td>
                         <td class="whitespace-nowrap text-right">
@@ -63,7 +69,7 @@
             </x-slot>
 
             <x-slot name="empty">
-                <p class="font-medium text-gray-900">No websites yet.</p>
+                <p class="font-medium text-ink">No websites yet.</p>
                 <p class="mt-1">Add your first WordPress site to start publishing.</p>
                 <p class="mt-4">
                     <x-button :href="route('websites.create')">Add website</x-button>

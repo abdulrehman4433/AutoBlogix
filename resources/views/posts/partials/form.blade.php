@@ -22,7 +22,7 @@
     );
 @endphp
 
-<form method="POST" action="{{ $action }}" class="rounded-xl bg-white p-6 ring-1 ring-gray-200">
+<form method="POST" action="{{ $action }}" class="card p-6">
     @csrf
     @if ($method !== 'POST')
         @method($method)
@@ -121,7 +121,7 @@
         />
     </div>
 
-    <div class="mt-6 flex items-center justify-end gap-3 border-t border-gray-100 pt-5">
+    <div class="mt-6 flex items-center justify-end gap-3 border-t border-line pt-5">
         <x-button variant="secondary" :href="$post ? route('posts.show', $post) : route('posts.index')">Cancel</x-button>
         <x-button variant="primary" type="submit">{{ $submitLabel }}</x-button>
     </div>

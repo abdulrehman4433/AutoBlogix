@@ -1,17 +1,24 @@
-<x-app-layout :title="$website->name">
-    <div class="space-y-6">
+<x-app-layout
+    :title="$website->name"
+    :breadcrumb="[
+        ['label' => 'Dashboard', 'href' => route('dashboard'), 'icon' => 'home'],
+        ['label' => 'Websites', 'href' => route('websites.index')],
+        ['label' => $website->name],
+    ]"
+>
+    <div class="space-y-6 animate-fade-in">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-                <a href="{{ route('websites.index') }}" class="text-sm text-gray-500 hover:text-indigo-600">&larr; Back to websites</a>
+                <a href="{{ route('websites.index') }}" class="text-sm text-ink-muted hover:text-brand-600">&larr; Back to websites</a>
                 <div class="mt-1 flex items-center gap-3">
-                    <h1 class="text-lg font-semibold text-gray-900">{{ $website->name }}</h1>
+                    <h1 class="text-lg font-semibold text-ink">{{ $website->name }}</h1>
                     <x-badge :variant="$website->status->badge()">{{ $website->status->label() }}</x-badge>
                 </div>
                 <a
                     href="{{ $website->url }}"
                     target="_blank"
                     rel="noopener noreferrer"
-                    class="mt-1 block text-sm text-indigo-600 hover:text-indigo-500"
+                    class="mt-1 block text-sm text-brand-600 hover:text-brand-700"
                 >{{ $website->url }} &nearr;</a>
             </div>
 
@@ -52,19 +59,10 @@
                         WordPress site. Afterwards only a masked hint will be visible here.
                     </p>
                     <div class="flex items-center gap-2">
-                        <code class="block flex-1 truncate rounded-md bg-white px-3 py-2 text-sm ring-1 ring-gray-200">
+                        <code class="block flex-1 truncate rounded-lg bg-surface-muted px-3 py-2 text-sm text-ink ring-1 ring-line">
                             {{ session('plaintext_secret') }}
                         </code>
-                        <span x-data="{ copied: false }">
-                            <x-button
-                                size="sm"
-                                variant="secondary"
-                                x-on:click="navigator.clipboard.writeText(@js(session('plaintext_secret'))); copied = true; window.setTimeout(() => copied = false, 1500)"
-                            >
-                                <span x-show="!copied">Copy</span>
-                                <span x-show="copied" x-cloak>Copied!</span>
-                            </x-button>
-                        </span>
+                        <x-copy-button :value="session('plaintext_secret')" />
                     </div>
                 </div>
             </x-alert>
@@ -72,42 +70,42 @@
 
         <div class="grid gap-6 lg:grid-cols-2">
             {{-- Status & connection details --}}
-            <section class="rounded-xl bg-white p-6 ring-1 ring-gray-200" aria-labelledby="status-heading">
-                <h2 id="status-heading" class="text-sm font-semibold text-gray-900">Connection status</h2>
+            <section class="card p-6" aria-labelledby="status-heading">
+                <h2 id="status-heading" class="text-sm font-semibold text-ink">Connection status</h2>
 
                 <dl class="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
                     <div>
-                        <dt class="text-gray-500">Status</dt>
+                        <dt class="text-ink-muted">Status</dt>
                         <dd class="mt-0.5"><x-badge :variant="$website->status->badge()">{{ $website->status->label() }}</x-badge></dd>
                     </div>
                     <div>
-                        <dt class="text-gray-500">Timezone</dt>
-                        <dd class="mt-0.5 font-medium text-gray-900">{{ $website->timezone }}</dd>
+                        <dt class="text-ink-muted">Timezone</dt>
+                        <dd class="mt-0.5 font-medium text-ink">{{ $website->timezone }}</dd>
                     </div>
                     <div>
-                        <dt class="text-gray-500">WordPress version</dt>
-                        <dd class="mt-0.5 font-medium text-gray-900">{{ $website->wordpress_version ?? '—' }}</dd>
+                        <dt class="text-ink-muted">WordPress version</dt>
+                        <dd class="mt-0.5 font-medium text-ink">{{ $website->wordpress_version ?? '—' }}</dd>
                     </div>
                     <div>
-                        <dt class="text-gray-500">Plugin version</dt>
-                        <dd class="mt-0.5 font-medium text-gray-900">{{ $website->plugin_version ?? '—' }}</dd>
+                        <dt class="text-ink-muted">Plugin version</dt>
+                        <dd class="mt-0.5 font-medium text-ink">{{ $website->plugin_version ?? '—' }}</dd>
                     </div>
                     <div>
-                        <dt class="text-gray-500">Last connected</dt>
-                        <dd class="mt-0.5 font-medium text-gray-900">
+                        <dt class="text-ink-muted">Last connected</dt>
+                        <dd class="mt-0.5 font-medium text-ink">
                             {{ $website->last_connected_at?->format('M j, Y H:i') ?? '—' }}
                         </dd>
                     </div>
                     <div>
-                        <dt class="text-gray-500">Last sync</dt>
-                        <dd class="mt-0.5 font-medium text-gray-900">
+                        <dt class="text-ink-muted">Last sync</dt>
+                        <dd class="mt-0.5 font-medium text-ink">
                             {{ $website->last_sync_at?->diffForHumans() ?? '—' }}
                         </dd>
                     </div>
                 </dl>
 
                 @if ($website->status !== \App\Enums\WebsiteStatus::Connected)
-                    <div class="mt-5 rounded-lg bg-sky-50 p-4 text-sm text-sky-900">
+                    <div class="mt-5 rounded-xl bg-info-soft p-4 text-sm text-info-strong">
                         <p class="font-semibold">Finish connecting this website</p>
                         <ol class="mt-2 list-decimal space-y-1 pl-5">
                             <li>Copy the API key and secret shown below.</li>
@@ -118,7 +116,7 @@
                 @endif
 
                 @if ($website->status === \App\Enums\WebsiteStatus::Error)
-                    <p class="mt-4 text-sm text-red-600">
+                    <p class="mt-4 text-sm text-danger-strong">
                         The last connection attempt failed. Verify the credentials in
                         the plugin, or rotate them and try again.
                     </p>
@@ -126,41 +124,32 @@
             </section>
 
             {{-- Credentials --}}
-            <section class="rounded-xl bg-white p-6 ring-1 ring-gray-200" aria-labelledby="credentials-heading">
-                <h2 id="credentials-heading" class="text-sm font-semibold text-gray-900">API credentials</h2>
+            <section class="card p-6" aria-labelledby="credentials-heading">
+                <h2 id="credentials-heading" class="text-sm font-semibold text-ink">API credentials</h2>
 
                 @if ($website->api_key === null)
-                    <p class="mt-4 text-sm text-gray-500">
+                    <p class="mt-4 text-sm text-ink-muted">
                         Credentials were revoked. Rotate them to generate a new
                         key and secret pair for the plugin.
                     </p>
                 @else
                     <div class="mt-4 space-y-4">
                         <div>
-                            <p class="text-xs font-medium text-gray-500">API key</p>
+                            <p class="text-xs font-medium text-ink-muted">API key</p>
                             <div class="mt-1 flex items-center gap-2">
-                                <code class="block flex-1 truncate rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-900 ring-1 ring-gray-200">
+                                <code class="block flex-1 truncate rounded-lg bg-surface-muted px-3 py-2 text-sm text-ink ring-1 ring-line">
                                     {{ $website->api_key }}
                                 </code>
-                                <span x-data="{ copied: false }">
-                                    <x-button
-                                        size="sm"
-                                        variant="secondary"
-                                        x-on:click="navigator.clipboard.writeText(@js($website->api_key)); copied = true; window.setTimeout(() => copied = false, 1500)"
-                                    >
-                                        <span x-show="!copied">Copy</span>
-                                        <span x-show="copied" x-cloak>Copied!</span>
-                                    </x-button>
-                                </span>
+                                <x-copy-button :value="$website->api_key" />
                             </div>
                         </div>
 
                         <div>
-                            <p class="text-xs font-medium text-gray-500">API secret</p>
-                            <p class="mt-1 rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-900 ring-1 ring-gray-200">
+                            <p class="text-xs font-medium text-ink-muted">API secret</p>
+                            <p class="mt-1 rounded-lg bg-surface-muted px-3 py-2 text-sm text-ink ring-1 ring-line">
                                 {{ $website->maskedSecretHint() ?? '••••••••' }}
                             </p>
-                            <p class="mt-1.5 text-xs text-gray-500">
+                            <p class="mt-1.5 text-xs text-ink-muted">
                                 For security the secret is only shown at creation and rotation.
                                 Lost it? Rotate the credentials to get a fresh pair.
                             </p>
@@ -168,7 +157,7 @@
                     </div>
                 @endif
 
-                <div class="mt-5 flex flex-wrap gap-3 border-t border-gray-100 pt-4">
+                <div class="mt-5 flex flex-wrap gap-3 border-t border-line pt-4">
                     <x-button
                         size="sm"
                         variant="secondary"
@@ -190,22 +179,22 @@
         </div>
 
         {{-- Recent connection activity --}}
-        <section class="rounded-xl bg-white ring-1 ring-gray-200" aria-labelledby="activity-heading">
-            <div class="border-b border-gray-100 px-5 py-4">
-                <h2 id="activity-heading" class="text-sm font-semibold text-gray-900">Connection activity</h2>
+        <section class="card overflow-hidden" aria-labelledby="activity-heading">
+            <div class="border-b border-line px-5 py-4">
+                <h2 id="activity-heading" class="text-sm font-semibold text-ink">Connection activity</h2>
             </div>
 
             @if ($connectionLogs->isEmpty())
-                <p class="px-5 py-6 text-sm text-gray-500">No connection activity yet.</p>
+                <x-empty-state compact icon="link" title="No connection activity yet." />
             @else
-                <ul class="divide-y divide-gray-50">
+                <ul class="divide-y divide-line">
                     @foreach ($connectionLogs as $log)
                         <li class="flex items-center justify-between gap-3 px-5 py-3">
                             <div class="min-w-0">
-                                <p class="truncate text-sm font-medium text-gray-900">
+                                <p class="truncate text-sm font-medium text-ink">
                                     {{ ucwords(str_replace('_', ' ', $log->action)) }}
                                 </p>
-                                <p class="truncate text-xs text-gray-500">
+                                <p class="truncate text-xs text-ink-muted">
                                     {{ $log->message }}
                                     @if ($log->ip_address)
                                         &middot; {{ $log->ip_address }}
@@ -214,7 +203,7 @@
                             </div>
                             <div class="flex shrink-0 flex-col items-end gap-1">
                                 <x-badge :variant="$log->status->badge()">{{ $log->status->label() }}</x-badge>
-                                <span class="text-xs text-gray-400">{{ $log->created_at->diffForHumans() }}</span>
+                                <span class="text-xs text-ink-faint">{{ $log->created_at->diffForHumans() }}</span>
                             </div>
                         </li>
                     @endforeach
@@ -259,7 +248,7 @@
 
         <x-modal name="confirm-delete-website" title="Delete this website?" max-width="md">
             <p>
-                <span class="font-medium text-gray-900">{{ $website->name }}</span>,
+                <span class="font-medium text-ink">{{ $website->name }}</span>,
                 all of its posts, and all connection and publishing logs will be
                 permanently deleted. This cannot be undone.
             </p>

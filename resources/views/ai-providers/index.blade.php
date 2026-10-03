@@ -1,8 +1,14 @@
-<x-app-layout title="AI Providers">
-    <div class="mx-auto max-w-3xl space-y-6">
+<x-app-layout
+    title="AI Providers"
+    :breadcrumb="[
+        ['label' => 'Dashboard', 'href' => route('dashboard'), 'icon' => 'home'],
+        ['label' => 'AI Providers'],
+    ]"
+>
+    <div class="mx-auto max-w-3xl space-y-6 animate-fade-in" x-data="{ removeUrl: null }">
         <div>
-            <h1 class="text-lg font-semibold text-gray-900">AI Providers</h1>
-            <p class="mt-1 text-sm text-gray-500">
+            <h1 class="text-lg font-semibold text-ink">AI Providers</h1>
+            <p class="mt-1 text-sm text-ink-muted">
                 Connect an OpenAI-compatible API for real generations. Without one, AutoBlogix
                 uses the built-in development provider — offline and predictable, ideal for
                 trying the workflow.
@@ -23,69 +29,64 @@
             </x-alert>
         @endif
 
-        <div class="rounded-xl bg-white p-6 ring-1 ring-gray-200">
-            <h2 class="text-sm font-semibold text-gray-900">Saved configurations</h2>
+        <div class="card p-6">
+            <h2 class="text-sm font-semibold text-ink">Saved configurations</h2>
 
-            @if ($providers->isEmpty())
-                <p class="mt-3 text-sm text-gray-500">No configurations yet.</p>
-            @else
-                <div class="mt-3 overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200 text-sm">
-                        <thead>
-                            <tr class="text-left text-xs uppercase tracking-wide text-gray-500">
-                                <th scope="col" class="py-2 pr-4">Provider</th>
-                                <th scope="col" class="py-2 pr-4">Model</th>
-                                <th scope="col" class="py-2 pr-4">Base URL</th>
-                                <th scope="col" class="py-2 pr-4">Key</th>
-                                <th scope="col" class="py-2 pr-4">Status</th>
-                                <th scope="col" class="py-2">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-100">
-                            @foreach ($providers as $provider)
-                                <tr>
-                                    <td class="py-2 pr-4 text-gray-900">{{ $provider->provider }}</td>
-                                    <td class="py-2 pr-4 text-gray-600">{{ $provider->model ?? 'default' }}</td>
-                                    <td class="py-2 pr-4 text-gray-600">{{ $provider->base_url ?? 'default' }}</td>
-                                    <td class="py-2 pr-4 text-gray-600">{{ $provider->maskedKeyHint() ?? '—' }}</td>
-                                    <td class="py-2 pr-4">
-                                        @if ($provider->is_active)
-                                            <x-badge variant="green">Active</x-badge>
-                                        @else
-                                            <x-badge variant="gray">Inactive</x-badge>
-                                        @endif
-                                    </td>
-                                    <td class="py-2">
-                                        <div class="flex items-center gap-3">
-                                            @unless ($provider->is_active)
-                                                <form method="POST" action="{{ route('ai.providers.activate', $provider) }}">
-                                                    @csrf
-                                                    <x-button size="sm" variant="secondary" type="submit">Activate</x-button>
-                                                </form>
-                                            @endunless
-                                            <form
-                                                method="POST"
-                                                action="{{ route('ai.providers.destroy', $provider) }}"
-                                                x-on:submit="if (! confirm('Remove this AI provider configuration?')) $event.preventDefault()"
-                                            >
+            <div class="mt-3">
+                <x-table :columns="6" :isEmpty="$providers->isEmpty()">
+                    <x-slot name="head">
+                        <th scope="col">Provider</th>
+                        <th scope="col">Model</th>
+                        <th scope="col">Base URL</th>
+                        <th scope="col">Key</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Actions</th>
+                    </x-slot>
+
+                    <x-slot name="body">
+                        @foreach ($providers as $provider)
+                            <tr class="hover:bg-surface-muted">
+                                <td class="whitespace-nowrap font-medium text-ink">{{ $provider->provider }}</td>
+                                <td class="whitespace-nowrap text-ink-muted">{{ $provider->model ?? 'default' }}</td>
+                                <td class="text-ink-muted">{{ $provider->base_url ?? 'default' }}</td>
+                                <td class="whitespace-nowrap text-ink-muted">{{ $provider->maskedKeyHint() ?? '—' }}</td>
+                                <td class="whitespace-nowrap">
+                                    @if ($provider->is_active)
+                                        <x-badge variant="green">Active</x-badge>
+                                    @else
+                                        <x-badge variant="gray">Inactive</x-badge>
+                                    @endif
+                                </td>
+                                <td class="whitespace-nowrap text-right">
+                                    <div class="inline-flex items-center gap-2">
+                                        @unless ($provider->is_active)
+                                            <form method="POST" action="{{ route('ai.providers.activate', $provider) }}">
                                                 @csrf
-                                                @method('DELETE')
-                                                <x-button size="sm" variant="danger" type="submit">Remove</x-button>
+                                                <x-button size="sm" variant="secondary" type="submit">Activate</x-button>
                                             </form>
-                                        </div>
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-            @endif
+                                        @endunless
+                                        <x-button
+                                            size="sm"
+                                            variant="danger"
+                                            x-on:click="removeUrl = '{{ route('ai.providers.destroy', $provider) }}'; $dispatch('open-modal', 'confirm-provider-remove')"
+                                        >Remove</x-button>
+                                    </div>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </x-slot>
+
+                    <x-slot name="empty">
+                        <p class="font-medium text-ink">No configurations yet.</p>
+                    </x-slot>
+                </x-table>
+            </div>
         </div>
 
-        <form method="POST" action="{{ route('ai.providers.store') }}" class="rounded-xl bg-white p-6 ring-1 ring-gray-200">
+        <form method="POST" action="{{ route('ai.providers.store') }}" class="card p-6">
             @csrf
-            <h2 class="text-sm font-semibold text-gray-900">Add a provider</h2>
-            <p class="mt-1 text-sm text-gray-500">
+            <h2 class="text-sm font-semibold text-ink">Add a provider</h2>
+            <p class="mt-1 text-sm text-ink-muted">
                 Keys are stored encrypted and never displayed again — only the last four
                 characters show. Saving a new provider makes it the active one.
             </p>
@@ -128,5 +129,22 @@
                 <x-button variant="primary" type="submit">Save provider</x-button>
             </div>
         </form>
+
+        <x-modal name="confirm-provider-remove" title="Remove this AI provider configuration?" max-width="md">
+            <p>
+                The saved configuration and its encrypted API key are permanently
+                deleted. This cannot be undone.
+            </p>
+            <x-slot name="footer">
+                <div class="flex justify-end gap-3">
+                    <x-button variant="secondary" x-on:click="$dispatch('close-modal')">Cancel</x-button>
+                    <form method="POST" :action="removeUrl">
+                        @csrf
+                        @method('DELETE')
+                        <x-button variant="danger" type="submit">Remove</x-button>
+                    </form>
+                </div>
+            </x-slot>
+        </x-modal>
     </div>
 </x-app-layout>

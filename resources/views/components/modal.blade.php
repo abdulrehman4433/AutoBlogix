@@ -2,6 +2,8 @@
     'name',
     'title' => null,
     'maxWidth' => 'md',
+    'show' => false,
+    'focusable' => false,
 ])
 
 @php
@@ -14,10 +16,13 @@
 @endphp
 
 <div
-    x-data="{ open: false }"
-    @open-modal.window="open = (detail === '{{ $name }}')"
+    x-data="{ open: {{ $show ? 'true' : 'false' }} }"
+    @open-modal.window="open = ($event.detail === '{{ $name }}')"
     @close-modal.window="open = false"
     @keydown.escape.window="open = false"
+    @if ($focusable)
+        x-effect="if (open) $nextTick(() => ($el.querySelector('input, select, textarea') ?? $el.querySelector('footer button, button'))?.focus())"
+    @endif
 >
     <div
         x-show="open"
@@ -28,7 +33,7 @@
         x-transition:leave="ease-in duration-150"
         x-transition:leave-start="opacity-100"
         x-transition:leave-end="opacity-0"
-        class="fixed inset-0 z-50 bg-gray-900/50"
+        class="fixed inset-0 z-50 bg-gray-900/60 backdrop-blur-sm"
         aria-hidden="true"
         @click="open = false"
     ></div>
@@ -49,14 +54,14 @@
     >
         <div
             @click.outside="open = false"
-            {{ $attributes->class(['w-full rounded-lg bg-white shadow-xl ' . ($maxWidths[$maxWidth] ?? $maxWidths['md'])]) }}
+            {{ $attributes->class(['w-full rounded-2xl bg-white shadow-2xl ring-1 ring-black/5 ' . ($maxWidths[$maxWidth] ?? $maxWidths['md'])]) }}
         >
             @if ($title)
-                <div class="flex items-start justify-between border-b border-gray-100 px-5 py-4">
-                    <h3 class="text-base font-semibold text-gray-900">{{ $title }}</h3>
+                <div class="flex items-start justify-between border-b border-line px-5 py-4">
+                    <h3 class="text-base font-semibold text-ink">{{ $title }}</h3>
                     <button
                         type="button"
-                        class="rounded-md text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        class="-m-1.5 rounded-lg p-1.5 text-ink-faint transition hover:bg-black/5 hover:text-ink focus:outline-none focus:ring-2 focus:ring-brand-500"
                         aria-label="Close"
                         @click="open = false"
                     >
@@ -72,7 +77,7 @@
             </div>
 
             @isset($footer)
-                <div class="flex justify-end gap-3 border-t border-gray-100 bg-gray-50 px-5 py-3 rounded-b-lg">
+                <div class="flex justify-end gap-3 border-t border-line bg-surface-muted px-5 py-3.5 rounded-b-2xl">
                     {{ $footer }}
                 </div>
             @endisset

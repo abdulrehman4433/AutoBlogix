@@ -10,18 +10,22 @@
         <!-- Scripts -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
-    <body class="h-full font-sans text-gray-900 antialiased">
-        <div class="flex min-h-full flex-col items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8">
-            <div class="w-full max-w-md">
+    <body class="h-full font-sans antialiased">
+        <div class="relative flex min-h-full flex-col items-center justify-center overflow-hidden bg-canvas px-4 py-12 sm:px-6 lg:px-8">
+            <!-- Decorative brand glows -->
+            <div class="pointer-events-none absolute -top-32 end-[-6rem] size-72 rounded-full bg-brand-gradient opacity-20 blur-3xl" aria-hidden="true"></div>
+            <div class="pointer-events-none absolute bottom-[-7rem] start-[-6rem] size-72 rounded-full bg-accent-gradient opacity-20 blur-3xl" aria-hidden="true"></div>
+
+            <div class="relative w-full max-w-md">
                 <div class="mb-8 flex flex-col items-center gap-3">
                     <a href="{{ url('/') }}" class="flex items-center gap-2">
-                        <span class="flex size-10 items-center justify-center rounded-lg bg-indigo-600 text-lg font-bold text-white" aria-hidden="true">A</span>
-                        <span class="text-2xl font-semibold tracking-tight text-gray-900">{{ config('app.name') }}</span>
+                        <span class="flex size-10 items-center justify-center rounded-xl bg-brand-gradient text-lg font-bold text-white shadow-glow" aria-hidden="true">A</span>
+                        <span class="text-2xl font-semibold tracking-tight text-ink">{{ config('app.name') }}</span>
                     </a>
-                    <p class="text-sm text-gray-500">Manage and publish to all your WordPress sites.</p>
+                    <p class="text-sm text-ink-muted">Manage and publish to all your WordPress sites.</p>
                 </div>
 
-                <div class="bg-white px-6 py-8 shadow-sm ring-1 ring-gray-200 sm:rounded-xl">
+                <div class="card px-6 py-8 sm:rounded-2xl fade-up">
                     {{ $slot }}
                 </div>
             </div>

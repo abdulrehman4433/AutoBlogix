@@ -1,14 +1,21 @@
-<x-app-layout title="Add website">
-    <div class="mx-auto max-w-2xl space-y-6">
+<x-app-layout
+    title="Add website"
+    :breadcrumb="[
+        ['label' => 'Dashboard', 'href' => route('dashboard'), 'icon' => 'home'],
+        ['label' => 'Websites', 'href' => route('websites.index')],
+        ['label' => 'Add website'],
+    ]"
+>
+    <div class="mx-auto max-w-2xl space-y-6 animate-fade-in">
         <div>
-            <h1 class="text-lg font-semibold text-gray-900">Add website</h1>
-            <p class="mt-1 text-sm text-gray-500">
+            <h1 class="text-lg font-semibold text-ink">Add website</h1>
+            <p class="mt-1 text-sm text-ink-muted">
                 Register a WordPress site. You will receive an API key and secret
                 to enter in the AutoBlogix WordPress plugin.
             </p>
         </div>
 
-        <form method="POST" action="{{ route('websites.store') }}" class="rounded-xl bg-white p-6 ring-1 ring-gray-200">
+        <form method="POST" action="{{ route('websites.store') }}" class="card p-6">
             @csrf
 
             <div class="space-y-5">
@@ -41,7 +48,7 @@
                 />
             </div>
 
-            <div class="mt-6 flex items-center justify-end gap-3 border-t border-gray-100 pt-5">
+            <div class="mt-6 flex items-center justify-end gap-3 border-t border-line pt-5">
                 <x-button variant="secondary" :href="route('websites.index')">Cancel</x-button>
                 <x-button variant="primary" type="submit">Save and get credentials</x-button>
             </div>

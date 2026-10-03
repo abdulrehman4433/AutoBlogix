@@ -9,23 +9,21 @@
 
 @php
     $variants = [
-        'primary' => 'bg-indigo-600 text-white shadow-sm hover:bg-indigo-500 focus-visible:ring-indigo-500',
-        'secondary' => 'bg-white text-gray-700 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus-visible:ring-indigo-500',
-        'danger' => 'bg-red-600 text-white shadow-sm hover:bg-red-500 focus-visible:ring-red-500',
-        'ghost' => 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus-visible:ring-gray-500',
+        'primary' => 'btn-primary',
+        'secondary' => 'btn-secondary',
+        'danger' => 'btn-danger',
+        'ghost' => 'btn-ghost',
     ];
     $sizes = [
-        'sm' => 'px-2.5 py-1.5 text-xs',
-        'md' => 'px-3 py-2 text-sm',
-        'lg' => 'px-4 py-2.5 text-sm',
+        'sm' => 'btn-sm',
+        'md' => 'btn-md',
+        'lg' => 'btn-lg',
     ];
 
     $classes = implode(' ', [
-        'inline-flex items-center justify-center gap-2 rounded-md font-semibold',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
-        'disabled:cursor-not-allowed disabled:opacity-50',
-        $sizes[$size] ?? $sizes['md'],
+        'btn',
         $variants[$variant] ?? $variants['primary'],
+        $sizes[$size] ?? $sizes['md'],
     ]);
 
     $isLink = $href !== null;

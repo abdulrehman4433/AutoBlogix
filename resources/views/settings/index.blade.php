@@ -1,40 +1,46 @@
-<x-app-layout title="Settings">
-    <div class="space-y-6">
+<x-app-layout
+    title="Settings"
+    :breadcrumb="[
+        ['label' => 'Dashboard', 'href' => route('dashboard'), 'icon' => 'home'],
+        ['label' => 'Settings'],
+    ]"
+>
+    <div class="space-y-6 animate-fade-in">
         <div>
-            <h1 class="text-lg font-semibold text-gray-900">Settings</h1>
-            <p class="mt-1 text-sm text-gray-500">Account, AI prompt template, and system information.</p>
+            <h1 class="text-lg font-semibold text-ink">Settings</h1>
+            <p class="mt-1 text-sm text-ink-muted">Account, AI prompt template, and system information.</p>
         </div>
 
         {{-- Account --}}
-        <div class="rounded-xl bg-white p-6 ring-1 ring-gray-200">
+        <div class="card p-6">
             <div class="flex items-start justify-between gap-4">
                 <div>
-                    <h2 class="text-sm font-semibold text-gray-900">Account</h2>
-                    <dl class="mt-3 space-y-1 text-sm text-gray-600">
+                    <h2 class="text-sm font-semibold text-ink">Account</h2>
+                    <dl class="mt-3 space-y-1 text-sm text-ink-muted">
                         <div class="flex gap-2">
-                            <dt class="w-24 text-gray-400">Name</dt>
-                            <dd class="font-medium text-gray-900">{{ $account->name }}</dd>
+                            <dt class="w-24 text-ink-faint">Name</dt>
+                            <dd class="font-medium text-ink">{{ $account->name }}</dd>
                         </div>
                         <div class="flex gap-2">
-                            <dt class="w-24 text-gray-400">Email</dt>
+                            <dt class="w-24 text-ink-faint">Email</dt>
                             <dd>{{ $account->email }}</dd>
                         </div>
                     </dl>
                 </div>
                 <x-button variant="secondary" :href="route('profile.edit')">Edit profile</x-button>
             </div>
-            <p class="mt-4 text-xs text-gray-500">
+            <p class="mt-4 text-xs text-ink-muted">
                 Change your name, email, or password on the profile page.
             </p>
         </div>
 
         {{-- AI prompt template --}}
-        <div class="rounded-xl bg-white p-6 ring-1 ring-gray-200">
-            <h2 class="text-sm font-semibold text-gray-900">AI prompt template</h2>
-            <p class="mt-1 text-sm text-gray-500">
+        <div class="card p-6">
+            <h2 class="text-sm font-semibold text-ink">AI prompt template</h2>
+            <p class="mt-1 text-sm text-ink-muted">
                 The system and user prompt used by <em>Blog post generation</em>.
                 Templates are global (shared by every account); until you save,
-                the built-in defaults from <code class="rounded bg-gray-100 px-1">config/ai.php</code> apply.
+                the built-in defaults from <code class="rounded bg-surface-muted px-1 text-ink">config/ai.php</code> apply.
             </p>
 
             <form method="POST" action="{{ route('settings.prompts.update') }}" class="mt-4 space-y-4">
@@ -67,17 +73,17 @@
         </div>
 
         {{-- System --}}
-        <div class="rounded-xl bg-white p-6 ring-1 ring-gray-200">
-            <h2 class="text-sm font-semibold text-gray-900">System</h2>
+        <div class="card p-6">
+            <h2 class="text-sm font-semibold text-ink">System</h2>
             <dl class="mt-3 grid gap-x-8 gap-y-2 text-sm sm:grid-cols-2">
                 @foreach ($system as $label => $value)
-                    <div class="flex justify-between gap-4 border-b border-gray-100 pb-2">
-                        <dt class="text-gray-500">{{ $label }}</dt>
-                        <dd class="text-right font-medium text-gray-900">{{ $value }}</dd>
+                    <div class="flex justify-between gap-4 border-b border-line pb-2">
+                        <dt class="text-ink-muted">{{ $label }}</dt>
+                        <dd class="text-right font-medium text-ink">{{ $value }}</dd>
                     </div>
                 @endforeach
             </dl>
-            <p class="mt-4 text-xs text-gray-500">
+            <p class="mt-4 text-xs text-ink-muted">
                 Secrets (API keys, database passwords) are never shown here.
             </p>
         </div>

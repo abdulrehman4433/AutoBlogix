@@ -1,15 +1,22 @@
-<x-app-layout :title="$post->title">
-    <div class="space-y-6" x-data="{ deleteUrl: '{{ route('posts.destroy', $post) }}' }">
+<x-app-layout
+    :title="$post->title"
+    :breadcrumb="[
+        ['label' => 'Dashboard', 'href' => route('dashboard'), 'icon' => 'home'],
+        ['label' => 'Posts', 'href' => route('posts.index')],
+        ['label' => $post->title],
+    ]"
+>
+    <div class="space-y-6 animate-fade-in" x-data="{ deleteUrl: '{{ route('posts.destroy', $post) }}' }">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div class="min-w-0">
                 <div class="flex flex-wrap items-center gap-2">
-                    <h1 class="truncate text-lg font-semibold text-gray-900">{{ $post->title }}</h1>
+                    <h1 class="truncate text-lg font-semibold text-ink">{{ $post->title }}</h1>
                     <x-badge :variant="$post->status->badge()">{{ $post->status->label() }}</x-badge>
                     <x-badge variant="gray">{{ $post->source->label() }}</x-badge>
                 </div>
-                <p class="mt-1 text-sm text-gray-500">
-                    <a class="hover:text-indigo-600" href="{{ route('websites.show', $post->website) }}">{{ $post->website->name }}</a>
-                    · <span class="text-gray-400">/</span> {{ $post->slug }}
+                <p class="mt-1 text-sm text-ink-muted">
+                    <a class="hover:text-brand-600" href="{{ route('websites.show', $post->website) }}">{{ $post->website->name }}</a>
+                    · <span class="text-ink-faint">/</span> {{ $post->slug }}
                 </p>
             </div>
             <div class="flex shrink-0 items-center gap-2">
@@ -59,108 +66,106 @@
         <div class="grid gap-6 lg:grid-cols-3">
             <div class="space-y-6 lg:col-span-2">
                 @if ($post->excerpt)
-                    <div class="rounded-xl bg-white p-6 ring-1 ring-gray-200">
-                        <h2 class="text-sm font-semibold text-gray-900">Excerpt</h2>
-                        <p class="mt-2 text-sm text-gray-600">{{ $post->excerpt }}</p>
+                    <div class="card p-6">
+                        <h2 class="text-sm font-semibold text-ink">Excerpt</h2>
+                        <p class="mt-2 text-sm text-ink-muted">{{ $post->excerpt }}</p>
                     </div>
                 @endif
 
-                <div class="rounded-xl bg-white p-6 ring-1 ring-gray-200">
-                    <h2 class="text-sm font-semibold text-gray-900">Preview</h2>
-                    <div class="mt-3 whitespace-pre-line text-sm leading-6 text-gray-800">
+                <div class="card p-6">
+                    <h2 class="text-sm font-semibold text-ink">Preview</h2>
+                    <div class="mt-3 whitespace-pre-line text-sm leading-6 text-ink">
                         @if (trim((string) $post->content) === '')
-                            <span class="text-gray-400">No content yet.</span>
+                            <span class="text-ink-faint">No content yet.</span>
                         @else
                             {!! \App\Support\HtmlSanitizer::sanitize($post->content) !!}
                         @endif
                     </div>
                 </div>
 
-                <div class="rounded-xl bg-white p-6 ring-1 ring-gray-200">
-                    <h2 class="text-sm font-semibold text-gray-900">Publishing history</h2>
+                <div class="card p-6">
+                    <h2 class="text-sm font-semibold text-ink">Publishing history</h2>
 
-                    @if ($publishingLogs->isEmpty())
-                        <p class="mt-3 text-sm text-gray-500">No publishing attempts yet.</p>
-                    @else
-                        <div class="mt-3 overflow-x-auto">
-                            <table class="min-w-full divide-y divide-gray-200 text-sm">
-                                <thead>
-                                    <tr class="text-left text-xs uppercase tracking-wide text-gray-500">
-                                        <th scope="col" class="py-2 pr-4">Attempt</th>
-                                        <th scope="col" class="py-2 pr-4">Status</th>
-                                        <th scope="col" class="py-2 pr-4">HTTP</th>
-                                        <th scope="col" class="py-2 pr-4">Started</th>
-                                        <th scope="col" class="py-2 pr-4">Completed</th>
-                                        <th scope="col" class="py-2">Details</th>
+                    <div class="mt-3">
+                        <x-table :columns="6" :isEmpty="$publishingLogs->isEmpty()">
+                            <x-slot name="head">
+                                <th scope="col">Attempt</th>
+                                <th scope="col">Status</th>
+                                <th scope="col">HTTP</th>
+                                <th scope="col">Started</th>
+                                <th scope="col">Completed</th>
+                                <th scope="col">Details</th>
+                            </x-slot>
+
+                            <x-slot name="body">
+                                @foreach ($publishingLogs as $log)
+                                    <tr>
+                                        <td class="whitespace-nowrap font-medium text-ink">#{{ $log->attempt }}</td>
+                                        <td class="whitespace-nowrap">
+                                            <x-badge :variant="$log->status->badge()">{{ $log->status->label() }}</x-badge>
+                                        </td>
+                                        <td class="whitespace-nowrap text-ink-muted">{{ $log->http_status ?? '—' }}</td>
+                                        <td class="whitespace-nowrap text-ink-muted">{{ $log->started_at?->format('M j, Y H:i') ?? '—' }}</td>
+                                        <td class="whitespace-nowrap text-ink-muted">{{ $log->completed_at?->format('M j, Y H:i') ?? '—' }}</td>
+                                        <td class="text-ink-muted">
+                                            {{ $log->error_message ?? $log->response_summary ?? '—' }}
+                                        </td>
                                     </tr>
-                                </thead>
-                                <tbody class="divide-y divide-gray-100">
-                                    @foreach ($publishingLogs as $log)
-                                        <tr>
-                                            <td class="py-2 pr-4 text-gray-900">#{{ $log->attempt }}</td>
-                                            <td class="py-2 pr-4">
-                                                <x-badge :variant="$log->status->badge()">{{ $log->status->label() }}</x-badge>
-                                            </td>
-                                            <td class="py-2 pr-4 text-gray-600">{{ $log->http_status ?? '—' }}</td>
-                                            <td class="py-2 pr-4 text-gray-600">{{ $log->started_at?->format('M j, Y H:i') ?? '—' }}</td>
-                                            <td class="py-2 pr-4 text-gray-600">{{ $log->completed_at?->format('M j, Y H:i') ?? '—' }}</td>
-                                            <td class="py-2 text-gray-600">
-                                                {{ $log->error_message ?? $log->response_summary ?? '—' }}
-                                            </td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                    @endif
+                                @endforeach
+                            </x-slot>
+
+                            <x-slot name="empty">
+                                <p class="font-medium text-ink">No publishing attempts yet.</p>
+                            </x-slot>
+                        </x-table>
+                    </div>
                 </div>
 
-                <div class="rounded-xl bg-white p-6 ring-1 ring-gray-200">
-                    <h2 class="text-sm font-semibold text-gray-900">AI generation history</h2>
+                <div class="card p-6">
+                    <h2 class="text-sm font-semibold text-ink">AI generation history</h2>
 
-                    @if ($aiLogs->isEmpty())
-                        <p class="mt-3 text-sm text-gray-500">No AI generation attempts yet.</p>
-                    @else
-                        <div class="mt-3 overflow-x-auto">
-                            <table class="min-w-full divide-y divide-gray-200 text-sm">
-                                <thead>
-                                    <tr class="text-left text-xs uppercase tracking-wide text-gray-500">
-                                        <th scope="col" class="py-2 pr-4">Provider</th>
-                                        <th scope="col" class="py-2 pr-4">Status</th>
-                                        <th scope="col" class="py-2 pr-4">Tokens</th>
-                                        <th scope="col" class="py-2 pr-4">Started</th>
-                                        <th scope="col" class="py-2">Details</th>
+                    <div class="mt-3">
+                        <x-table :columns="5" :isEmpty="$aiLogs->isEmpty()">
+                            <x-slot name="head">
+                                <th scope="col">Provider</th>
+                                <th scope="col">Status</th>
+                                <th scope="col">Tokens</th>
+                                <th scope="col">Started</th>
+                                <th scope="col">Details</th>
+                            </x-slot>
+
+                            <x-slot name="body">
+                                @foreach ($aiLogs as $log)
+                                    <tr>
+                                        <td class="whitespace-nowrap font-medium text-ink">
+                                            {{ $log->provider }}{{ $log->model ? ' · '.$log->model : '' }}
+                                        </td>
+                                        <td class="whitespace-nowrap">
+                                            <x-badge :variant="$log->status->badge()">{{ $log->status->label() }}</x-badge>
+                                        </td>
+                                        <td class="whitespace-nowrap text-ink-muted">{{ $log->tokens_used ?? '—' }}</td>
+                                        <td class="whitespace-nowrap text-ink-muted">{{ $log->started_at?->format('M j, Y H:i') ?? '—' }}</td>
+                                        <td class="text-ink-muted">{{ $log->error_message ?? '—' }}</td>
                                     </tr>
-                                </thead>
-                                <tbody class="divide-y divide-gray-100">
-                                    @foreach ($aiLogs as $log)
-                                        <tr>
-                                            <td class="py-2 pr-4 text-gray-900">
-                                                {{ $log->provider }}{{ $log->model ? ' · '.$log->model : '' }}
-                                            </td>
-                                            <td class="py-2 pr-4">
-                                                <x-badge :variant="$log->status->badge()">{{ $log->status->label() }}</x-badge>
-                                            </td>
-                                            <td class="py-2 pr-4 text-gray-600">{{ $log->tokens_used ?? '—' }}</td>
-                                            <td class="py-2 pr-4 text-gray-600">{{ $log->started_at?->format('M j, Y H:i') ?? '—' }}</td>
-                                            <td class="py-2 text-gray-600">{{ $log->error_message ?? '—' }}</td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                    @endif
+                                @endforeach
+                            </x-slot>
+
+                            <x-slot name="empty">
+                                <p class="font-medium text-ink">No AI generation attempts yet.</p>
+                            </x-slot>
+                        </x-table>
+                    </div>
                 </div>
             </div>
 
             <div class="space-y-6">
-                <div class="rounded-xl bg-white p-6 ring-1 ring-gray-200">
-                    <h2 class="text-sm font-semibold text-gray-900">Details</h2>
+                <div class="card p-6">
+                    <h2 class="text-sm font-semibold text-ink">Details</h2>
                     <dl class="mt-3 space-y-3 text-sm">
                         <div>
-                            <dt class="text-xs uppercase tracking-wide text-gray-500">Website</dt>
+                            <dt class="text-xs uppercase tracking-wide text-ink-faint">Website</dt>
                             <dd class="mt-0.5">
-                                <a class="text-indigo-600 hover:text-indigo-500" href="{{ route('websites.show', $post->website) }}">
+                                <a class="text-brand-600 hover:text-brand-700" href="{{ route('websites.show', $post->website) }}">
                                     {{ $post->website->name }}
                                 </a>
                             </dd>
@@ -168,24 +173,24 @@
 
                         @if ($post->topic)
                             <div>
-                                <dt class="text-xs uppercase tracking-wide text-gray-500">Topic</dt>
-                                <dd class="mt-0.5 text-gray-900">{{ $post->topic }}</dd>
+                                <dt class="text-xs uppercase tracking-wide text-ink-faint">Topic</dt>
+                                <dd class="mt-0.5 text-ink">{{ $post->topic }}</dd>
                             </div>
                         @endif
 
                         @if ($post->category)
                             <div>
-                                <dt class="text-xs uppercase tracking-wide text-gray-500">Category</dt>
-                                <dd class="mt-0.5 text-gray-900">{{ $post->category }}</dd>
+                                <dt class="text-xs uppercase tracking-wide text-ink-faint">Category</dt>
+                                <dd class="mt-0.5 text-ink">{{ $post->category }}</dd>
                             </div>
                         @endif
 
                         @if ((array) $post->tags !== [])
                             <div>
-                                <dt class="text-xs uppercase tracking-wide text-gray-500">Tags</dt>
+                                <dt class="text-xs uppercase tracking-wide text-ink-faint">Tags</dt>
                                 <dd class="mt-1 flex flex-wrap gap-1.5">
                                     @foreach ((array) $post->tags as $tag)
-                                        <span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-700">{{ $tag }}</span>
+                                        <span class="rounded-full bg-surface-muted px-2 py-0.5 text-xs text-ink-muted">{{ $tag }}</span>
                                     @endforeach
                                 </dd>
                             </div>
@@ -193,10 +198,10 @@
 
                         @if ((array) $post->keywords !== [])
                             <div>
-                                <dt class="text-xs uppercase tracking-wide text-gray-500">Focus keywords</dt>
+                                <dt class="text-xs uppercase tracking-wide text-ink-faint">Focus keywords</dt>
                                 <dd class="mt-1 flex flex-wrap gap-1.5">
                                     @foreach ((array) $post->keywords as $keyword)
-                                        <span class="rounded-full bg-indigo-50 px-2 py-0.5 text-xs text-indigo-700">{{ $keyword }}</span>
+                                        <span class="rounded-full bg-brand-50 px-2 py-0.5 text-xs text-brand-700">{{ $keyword }}</span>
                                     @endforeach
                                 </dd>
                             </div>
@@ -204,38 +209,38 @@
 
                         @if ($post->meta_description)
                             <div>
-                                <dt class="text-xs uppercase tracking-wide text-gray-500">Meta description</dt>
-                                <dd class="mt-0.5 text-gray-900">{{ $post->meta_description }}</dd>
+                                <dt class="text-xs uppercase tracking-wide text-ink-faint">Meta description</dt>
+                                <dd class="mt-0.5 text-ink">{{ $post->meta_description }}</dd>
                             </div>
                         @endif
 
                         <div>
-                            <dt class="text-xs uppercase tracking-wide text-gray-500">Schedule</dt>
-                            <dd class="mt-0.5 text-gray-900">
+                            <dt class="text-xs uppercase tracking-wide text-ink-faint">Schedule</dt>
+                            <dd class="mt-0.5 text-ink">
                                 @if ($post->scheduled_at)
                                     {{ $post->scheduledAtSiteTime()->format('M j, Y H:i') }}
-                                    <span class="text-xs text-gray-400">website time</span>
+                                    <span class="text-xs text-ink-faint">website time</span>
                                 @else
-                                    <span class="text-gray-400">Not scheduled</span>
+                                    <span class="text-ink-faint">Not scheduled</span>
                                 @endif
                             </dd>
                         </div>
 
                         @if ($post->published_at)
                             <div>
-                                <dt class="text-xs uppercase tracking-wide text-gray-500">Published</dt>
-                                <dd class="mt-0.5 text-gray-900">
+                                <dt class="text-xs uppercase tracking-wide text-ink-faint">Published</dt>
+                                <dd class="mt-0.5 text-ink">
                                     {{ $post->publishedAtSiteTime()->format('M j, Y H:i') }}
-                                    <span class="text-xs text-gray-400">website time</span>
+                                    <span class="text-xs text-ink-faint">website time</span>
                                 </dd>
                             </div>
                         @endif
 
                         @if ($post->wordpress_url)
                             <div>
-                                <dt class="text-xs uppercase tracking-wide text-gray-500">On WordPress</dt>
+                                <dt class="text-xs uppercase tracking-wide text-ink-faint">On WordPress</dt>
                                 <dd class="mt-0.5 break-all">
-                                    <a class="text-indigo-600 hover:text-indigo-500" href="{{ $post->wordpress_url }}" target="_blank" rel="noopener">
+                                    <a class="text-brand-600 hover:text-brand-700" href="{{ $post->wordpress_url }}" target="_blank" rel="noopener">
                                         {{ $post->wordpress_url }}
                                     </a>
                                 </dd>
@@ -244,8 +249,8 @@
 
                         @if ($post->ai_provider)
                             <div>
-                                <dt class="text-xs uppercase tracking-wide text-gray-500">AI</dt>
-                                <dd class="mt-0.5 text-gray-900">
+                                <dt class="text-xs uppercase tracking-wide text-ink-faint">AI</dt>
+                                <dd class="mt-0.5 text-ink">
                                     {{ $post->ai_provider }}{{ $post->ai_model ? ' · '.$post->ai_model : '' }}
                                 </dd>
                             </div>

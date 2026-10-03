@@ -1,15 +1,21 @@
-<x-app-layout title="Posts">
-    <div class="space-y-6" x-data="{ deleteUrl: null }">
+<x-app-layout
+    title="Posts"
+    :breadcrumb="[
+        ['label' => 'Dashboard', 'href' => route('dashboard'), 'icon' => 'home'],
+        ['label' => 'Posts'],
+    ]"
+>
+    <div class="space-y-6 animate-fade-in" x-data="{ deleteUrl: null }">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-                <h1 class="text-lg font-semibold text-gray-900">Posts</h1>
-                <p class="mt-1 text-sm text-gray-500">Everything you write for your WordPress sites.</p>
+                <h1 class="text-lg font-semibold text-ink">Posts</h1>
+                <p class="mt-1 text-sm text-ink-muted">Everything you write for your WordPress sites.</p>
             </div>
             <x-button :href="route('posts.create')">New post</x-button>
         </div>
 
         {{-- Filters (invalid values are ignored server-side) --}}
-        <form method="GET" action="{{ route('posts.index') }}" class="grid gap-3 rounded-xl bg-white p-4 ring-1 ring-gray-200 sm:grid-cols-4">
+        <form method="GET" action="{{ route('posts.index') }}" class="grid gap-3 card p-4 sm:grid-cols-4">
             <x-input
                 name="q"
                 label="Search"
@@ -57,17 +63,17 @@
 
                 <x-slot name="body">
                     @foreach ($posts as $post)
-                        <tr class="hover:bg-gray-50">
+                        <tr class="hover:bg-surface-muted">
                             <td class="max-w-xs">
-                                <a class="block truncate font-medium text-gray-900 hover:text-indigo-600" href="{{ route('posts.show', $post) }}">
+                                <a class="block truncate font-medium text-ink hover:text-brand-600" href="{{ route('posts.show', $post) }}">
                                     {{ $post->title }}
                                 </a>
                                 @if ($post->topic)
-                                    <span class="block truncate text-xs text-gray-500">{{ $post->topic }}</span>
+                                    <span class="block truncate text-xs text-ink-muted">{{ $post->topic }}</span>
                                 @endif
                             </td>
-                            <td class="whitespace-nowrap text-gray-600">
-                                <a class="hover:text-indigo-600" href="{{ route('websites.show', $post->website) }}">
+                            <td class="whitespace-nowrap text-ink-muted">
+                                <a class="hover:text-brand-600" href="{{ route('websites.show', $post->website) }}">
                                     {{ $post->website->name }}
                                 </a>
                             </td>
@@ -77,14 +83,14 @@
                             <td class="whitespace-nowrap">
                                 <x-badge variant="gray">{{ $post->source->label() }}</x-badge>
                             </td>
-                            <td class="whitespace-nowrap text-sm text-gray-600">
+                            <td class="whitespace-nowrap text-sm text-ink-muted">
                                 @if ($post->status->value === 'published' && $post->published_at)
                                     {{ $post->publishedAtSiteTime()->diffForHumans() }}
                                 @elseif ($post->scheduled_at)
                                     {{ $post->scheduledAtSiteTime()->format('M j, Y H:i') }}
-                                    <span class="text-xs text-gray-400">site time</span>
+                                    <span class="text-xs text-ink-faint">site time</span>
                                 @else
-                                    <span class="text-gray-400">—</span>
+                                    <span class="text-ink-faint">—</span>
                                 @endif
                             </td>
                             <td class="whitespace-nowrap text-right">
@@ -106,13 +112,13 @@
 
                 <x-slot name="empty">
                     @if (request()->hasAny(['q', 'status', 'website']))
-                        <p class="font-medium text-gray-900">No posts match your filters.</p>
+                        <p class="font-medium text-ink">No posts match your filters.</p>
                         <p class="mt-1">Try a different search, or reset the filters.</p>
                         <p class="mt-4">
                             <x-button variant="secondary" :href="route('posts.index')">Reset filters</x-button>
                         </p>
                     @else
-                        <p class="font-medium text-gray-900">No posts yet.</p>
+                        <p class="font-medium text-ink">No posts yet.</p>
                         <p class="mt-1">Create your first post to get started.</p>
                         <p class="mt-4">
                             <x-button :href="route('posts.create')">New post</x-button>
@@ -122,8 +128,8 @@
             </x-table>
 
             @if ($posts->hasPages())
-                <div class="rounded-xl bg-white px-4 py-3 ring-1 ring-gray-200">
-                    {{ $posts->links() }}
+                <div class="card px-4 py-3">
+                    {{ $posts->links('vendor.pagination.tailwind') }}
                 </div>
             @endif
         @endif

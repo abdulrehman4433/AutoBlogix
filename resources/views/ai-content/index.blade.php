@@ -1,8 +1,14 @@
-<x-app-layout title="AI Content">
-    <div class="mx-auto max-w-3xl space-y-6">
+<x-app-layout
+    title="AI Content"
+    :breadcrumb="[
+        ['label' => 'Dashboard', 'href' => route('dashboard'), 'icon' => 'home'],
+        ['label' => 'AI Content'],
+    ]"
+>
+    <div class="mx-auto max-w-3xl space-y-6 animate-fade-in">
         <div>
-            <h1 class="text-lg font-semibold text-gray-900">AI Content</h1>
-            <p class="mt-1 text-sm text-gray-500">
+            <h1 class="text-lg font-semibold text-ink">AI Content</h1>
+            <p class="mt-1 text-sm text-ink-muted">
                 Describe what you want, and AutoBlogix writes a ready-to-edit draft with your
                 chosen tone and length — using your configured AI provider, or the built-in
                 development provider when none is set.
@@ -18,7 +24,7 @@
                 </p>
             </x-alert>
         @else
-            <form method="POST" action="{{ route('ai.store') }}" class="rounded-xl bg-white p-6 ring-1 ring-gray-200">
+            <form method="POST" action="{{ route('ai.store') }}" class="card p-6">
                 @csrf
                 <div class="space-y-5">
                     <x-select

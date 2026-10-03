@@ -1,9 +1,15 @@
-<x-app-layout title="Schedules">
-    <div class="space-y-6">
+<x-app-layout
+    title="Schedules"
+    :breadcrumb="[
+        ['label' => 'Dashboard', 'href' => route('dashboard'), 'icon' => 'home'],
+        ['label' => 'Schedules'],
+    ]"
+>
+    <div class="space-y-6 animate-fade-in">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-                <h1 class="text-lg font-semibold text-gray-900">Schedules</h1>
-                <p class="mt-1 text-sm text-gray-500">Posts publish automatically when their time arrives.</p>
+                <h1 class="text-lg font-semibold text-ink">Schedules</h1>
+                <p class="mt-1 text-sm text-ink-muted">Posts publish automatically when their time arrives.</p>
             </div>
             <div class="flex items-center gap-2">
                 <form method="POST" action="{{ route('schedules.run') }}">
@@ -16,10 +22,10 @@
 
         <x-alert type="info" title="How automatic publishing runs">
             Every minute, the scheduler
-            (<code class="rounded bg-sky-100 px-1">php artisan schedule:run</code> via cron, or
-            <code class="rounded bg-sky-100 px-1">php artisan schedule:work</code> in development)
+            (<code class="rounded bg-black/5 px-1">php artisan schedule:run</code> via cron, or
+            <code class="rounded bg-black/5 px-1">php artisan schedule:work</code> in development)
             queues every post whose time has arrived, and the queue worker
-            (<code class="rounded bg-sky-100 px-1">php artisan queue:work</code>) then publishes it.
+            (<code class="rounded bg-black/5 px-1">php artisan queue:work</code>) then publishes it.
             Posts missed while the server was down publish on the next run.
         </x-alert>
 
@@ -48,26 +54,26 @@
                     @php
                         $isOverdue = $post->scheduled_at->lessThan(now());
                     @endphp
-                    <tr class="hover:bg-gray-50">
+                    <tr class="hover:bg-surface-muted">
                         <td class="max-w-xs">
-                            <a class="block truncate font-medium text-gray-900 hover:text-indigo-600" href="{{ route('posts.show', $post) }}">
+                            <a class="block truncate font-medium text-ink hover:text-brand-600" href="{{ route('posts.show', $post) }}">
                                 {{ $post->title }}
                             </a>
                             @if ($post->topic)
-                                <span class="block truncate text-xs text-gray-500">{{ $post->topic }}</span>
+                                <span class="block truncate text-xs text-ink-muted">{{ $post->topic }}</span>
                             @endif
                         </td>
-                        <td class="whitespace-nowrap text-gray-600">
-                            <a class="hover:text-indigo-600" href="{{ route('websites.show', $post->website) }}">
+                        <td class="whitespace-nowrap text-ink-muted">
+                            <a class="hover:text-brand-600" href="{{ route('websites.show', $post->website) }}">
                                 {{ $post->website->name }}
                             </a>
                         </td>
-                        <td class="whitespace-nowrap text-sm text-gray-600">
+                        <td class="whitespace-nowrap text-sm text-ink-muted">
                             <span class="mr-1">{{ $post->scheduledAtSiteTime()->format('M j, Y H:i') }}</span>
-                            <span class="text-xs text-gray-400">site time</span>
+                            <span class="text-xs text-ink-faint">site time</span>
                             @if ($isOverdue)
                                 <x-badge variant="amber">Overdue</x-badge>
-                                <span class="block text-xs text-gray-400">{{ $post->scheduled_at->diffForHumans() }}</span>
+                                <span class="block text-xs text-ink-faint">{{ $post->scheduled_at->diffForHumans() }}</span>
                             @endif
                         </td>
                         <td class="whitespace-nowrap text-right">
@@ -84,7 +90,7 @@
             </x-slot>
 
             <x-slot name="empty">
-                <p class="font-medium text-gray-900">Nothing scheduled yet.</p>
+                <p class="font-medium text-ink">Nothing scheduled yet.</p>
                 <p class="mt-1">Set a publish time on a post and it will publish automatically.</p>
                 <p class="mt-4">
                     <x-button :href="route('posts.create')">New post</x-button>
