@@ -9,8 +9,8 @@ use App\Http\Controllers\PostsController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SchedulesController;
 use App\Http\Controllers\SettingsController;
-use App\Http\Controllers\WebsiteCredentialController;
 use App\Http\Controllers\WebsitesController;
+use App\Http\Controllers\WebsiteCredentialController;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/dashboard');
